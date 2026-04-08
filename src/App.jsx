@@ -660,7 +660,7 @@ export default function App(){
         setBpLoading(true);setBpMov(null);setBpRevealed(false);setBpGuess("");
         try{
           const ctrl=new AbortController();setTimeout(()=>ctrl.abort(),25000);
-          const txt=await askAI(`Pick 1 well-known movie and describe its plot in 2-3 sentences WITHOUT mentioning the title, any character names, or actor names. Make it tricky but fair. Return ONLY JSON: {"plot":"...","title":"...","year":2020,"genre":"...","hint":"a 1-word hint"}. No markdown.`,ctrl.signal);
+          const txt=await askAI("Pick 1 well-known movie and describe its plot in 2-3 sentences WITHOUT mentioning the title, any character names, or actor names. Make it tricky but fair. Return ONLY JSON with fields: plot, title, year, genre, hint (1 word). No markdown, no backticks, pure JSON only.",ctrl.signal);
           const m=txt.replace(/```json|```/g,"").trim().match(/\{[\s\S]*\}/);
           if(m)setBpMov(JSON.parse(m[0]));
         }catch(e){console.error(e);}
@@ -723,8 +723,9 @@ export default function App(){
         setQuizLoading(true);
         try{
           const ctrl=new AbortController();setTimeout(()=>ctrl.abort(),25000);
-          const qStr=answers.map((a,i)=>"Q"+(i+1)+': "'+a+'"').join(", ");
-            const txt=await askAI("Based on these movie quiz answers, give a fun movie personality result. Answers: "+qStr+'. Return ONLY JSON: {"type":"creative name","emoji":"1 emoji","description":"2-3 fun sentences about their movie personality","topGenres":["genre1","genre2"],"spiritMovie":"a movie that represents them","color":"a hex color"}. No markdown.',ctrl.signal);          const m=txt.replace(/```json|```/g,"").trim().match(/\{[\s\S]*\}/);
+          var qStr=answers.map(function(a,i){return "Q"+(i+1)+": "+a;}).join(", ");
+            const txt=await askAI("Based on these movie quiz answers, give a fun movie personality result. Answers: "+qStr+". Return ONLY JSON with these fields: type (creative name), emoji (1 emoji), description (2-3 fun sentences), topGenres (array of 2 genres), spiritMovie (a movie title), color (hex color). No markdown, no backticks, pure JSON only.",ctrl.signal);
+          const m=txt.replace(/```json|```/g,"").trim().match(/\{[\s\S]*\}/);
           if(m)setQuizResult(JSON.parse(m[0]));
           else setQuizResult(TYPES[Math.floor(Math.random()*TYPES.length)]);
         }catch{setQuizResult(TYPES[Math.floor(Math.random()*TYPES.length)]);}
