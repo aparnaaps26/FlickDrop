@@ -723,8 +723,8 @@ export default function App(){
         setQuizLoading(true);
         try{
           const ctrl=new AbortController();setTimeout(()=>ctrl.abort(),25000);
-          const txt=await askAI(`Based on these movie quiz answers, give a fun movie personality result. Answers: ${answers.map((a,i)=>\`Q${i+1}: "${a}"\`).join(", ")}. Return ONLY JSON: {"type":"creative name","emoji":"1 emoji","description":"2-3 fun sentences about their movie personality","topGenres":["genre1","genre2"],"spiritMovie":"a movie that represents them","color":"a hex color"}. No markdown.`,ctrl.signal);
-          const m=txt.replace(/```json|```/g,"").trim().match(/\{[\s\S]*\}/);
+          const qStr=answers.map((a,i)=>"Q"+(i+1)+': "'+a+'"').join(", ");
+            const txt=await askAI("Based on these movie quiz answers, give a fun movie personality result. Answers: "+qStr+'. Return ONLY JSON: {"type":"creative name","emoji":"1 emoji","description":"2-3 fun sentences about their movie personality","topGenres":["genre1","genre2"],"spiritMovie":"a movie that represents them","color":"a hex color"}. No markdown.',ctrl.signal);          const m=txt.replace(/```json|```/g,"").trim().match(/\{[\s\S]*\}/);
           if(m)setQuizResult(JSON.parse(m[0]));
           else setQuizResult(TYPES[Math.floor(Math.random()*TYPES.length)]);
         }catch{setQuizResult(TYPES[Math.floor(Math.random()*TYPES.length)]);}
