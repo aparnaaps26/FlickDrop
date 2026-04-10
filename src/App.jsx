@@ -96,14 +96,21 @@ const load=(k,def)=>{try{const v=localStorage.getItem("fd_"+k);return v?JSON.par
 const save=(k,v)=>{try{localStorage.setItem("fd_"+k,JSON.stringify(v));}catch{}};
 
 async function askAI(prompt, signal) {
-  const res = await fetch('/api/movies', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, signal,
-    body: JSON.stringify({ prompt, max_tokens: 2000 }),
-  });
-  if (!res.ok) throw new Error('API error: ' + res.status);
-  const data = await res.json();
-  if (data.error) throw new Error(data.error);
-  return data.text;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const res = await fetch('/api/movies', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, signal,
+        body: JSON.stringify({ prompt, max_tokens: 2000 }),
+      });
+      if (!res.ok) throw new Error('API error: ' + res.status);
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      return data.text;
+    } catch (e) {
+      if (e.name === 'AbortError' || attempt === 1) throw e;
+      await new Promise(r => setTimeout(r, 1500));
+    }
+  }
 }
 
 export default function App(){
@@ -169,10 +176,9 @@ export default function App(){
   const resetNav=d=>{setBusy(false);setMov([]);setErr("");setRView("list");setSwIdx(0);setSwLiked([]);setSwDir(null);setVotes({});setScr(d);};
 
   const doFetch=useCallback(async()=>{
-    const cur=mov.filter(m=>m.title).map(m=>m.title);
-    cur.forEach(t=>{if(!shownRef.current.includes(t))shownRef.current.push(t);});
+    if(busy)return;
     setBusy(true);setMov([]);setScr("results");setErr("");setRView("list");setSwIdx(0);setSwLiked([]);setSwDir(null);setVotes({});
-    let mi=0;
+    let mi=0;let timer=null;
     const iv=setInterval(()=>{mi=(mi+1)%LMS.length;setLm(LMS[mi]);},2200);
     const mt=moods.join(", ");
     const langNames=langs.map(c=>LANGS.find(l=>l.c===c)?.l).filter(Boolean);
@@ -199,16 +205,15 @@ export default function App(){
       ?`Return exactly ${total} movies as JSON array.${distRule}${langClause}${ec}${taste}${subList} Mix popular+hidden gems.${sc} Genre: pick 1-2 from ONLY: Action, Comedy, Drama, Romance, Thriller, Horror, Sci-Fi, Fantasy, Animation, Musical, Documentary, Mystery, Adventure, Family. Context: couple's movie night. Return ONLY: [{"title":"...","year":2020,"genre":"Drama, Thriller","language":"...","mood":"...","whyWatch":"...","contentRating":"...","platforms":["${exPlat}"]}]. No markdown.`
       :`Return exactly ${total} movies as JSON array.${distRule} Kids ages: ${ages.join(",")}.${langClause}${ec}${taste}${subList}${sc} Genre: pick 1-2 from ONLY: Action, Comedy, Drama, Romance, Thriller, Horror, Sci-Fi, Fantasy, Animation, Musical, Documentary, Mystery, Adventure, Family. Context: family movie night, age-appropriate. Return ONLY: [{"title":"...","year":2020,"genre":"Action, Adventure","language":"...","mood":"...","whyWatch":"...","ageAppropriate":"...","platforms":["${exPlat}"]}]. No markdown.`;
     try{
-      const ctrl=new AbortController();const timer=setTimeout(()=>ctrl.abort(),25000);
+      const ctrl=new AbortController();timer=setTimeout(()=>ctrl.abort(),40000);
       const txt=await askAI(pr,ctrl.signal);
-      clearTimeout(timer);
       const m=txt.replace(/```json|```/g,"").trim().match(/\[[\s\S]*\]/);if(!m)throw new Error("Parse error");
       const parsed=JSON.parse(m[0]);
       parsed.forEach(p=>{if(p.title&&!shownRef.current.includes(p.title))shownRef.current.push(p.title);});
       setMov(parsed);
     }catch(e){setErr(e.name==="AbortError"?"Timed out. Try again!":(e.message||"Error"));setMov([{error:true}]);}
-    finally{clearInterval(iv);setBusy(false);}
-  },[moods,ages,mode,seen,langs,eras,mov,subs]);
+    finally{clearTimeout(timer);clearInterval(iv);setBusy(false);}
+  },[moods,ages,mode,seen,langs,eras,subs]);
 
   // styles
   const cd={background:"rgba(255,255,255,0.035)",borderRadius:16,border:"1px solid rgba(255,255,255,0.06)"};
@@ -662,7 +667,7 @@ export default function App(){
       const fetchBP=async()=>{
         setBpLoading(true);setBpMov(null);setBpRevealed(false);setBpGuess("");
         try{
-          const ctrl=new AbortController();setTimeout(()=>ctrl.abort(),25000);
+          const ctrl=new AbortController();setTimeout(()=>ctrl.abort(),40000);
           const txt=await askAI("Pick 1 well-known movie and describe its plot in 2-3 sentences WITHOUT mentioning the title, any character names, or actor names. Make it tricky but fair. Return ONLY JSON with fields: plot, title, year, genre, hint (1 word). No markdown, no backticks, pure JSON only.",ctrl.signal);
           const m=txt.replace(/```json|```/g,"").trim().match(/\{[\s\S]*\}/);
           if(m)setBpMov(JSON.parse(m[0]));
@@ -725,7 +730,7 @@ export default function App(){
       const doQuizResult=async(answers)=>{
         setQuizLoading(true);
         try{
-          const ctrl=new AbortController();setTimeout(()=>ctrl.abort(),25000);
+          const ctrl=new AbortController();setTimeout(()=>ctrl.abort(),40000);
           var qStr=answers.map(function(a,i){return "Q"+(i+1)+": "+a;}).join(", ");
           const txt=await askAI("Based on these movie quiz answers, give a fun movie personality result. Answers: "+qStr+". Return ONLY JSON with fields: type (creative name), emoji (1 emoji), description (2-3 fun sentences), topGenres (array of 2 genres), spiritMovie (a movie title), color (hex color). No markdown, no backticks, pure JSON only.",ctrl.signal);
           const m=txt.replace(/```json|```/g,"").trim().match(/\{[\s\S]*\}/);
