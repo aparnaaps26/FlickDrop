@@ -92,11 +92,9 @@ const tg=(a,v)=>a.includes(v)?a.filter(x=>x!==v):[...a,v];
 const mk=m=>`${m.title}::${m.year}`;
 const avBg=emoji=>AVATARS.find(a=>a.emoji===emoji)?.bg||"#1a1a2e";
 
-// ── localStorage helpers ──
 const load=(k,def)=>{try{const v=localStorage.getItem("fd_"+k);return v?JSON.parse(v):def;}catch{return def;}};
 const save=(k,v)=>{try{localStorage.setItem("fd_"+k,JSON.stringify(v));}catch{}};
 
-// ── AI helper — calls /api/movies (Groq via Vercel) ──
 async function askAI(prompt, signal) {
   const res = await fetch('/api/movies', {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, signal,
@@ -133,6 +131,11 @@ export default function App(){
   const [ee,setEe]=useState("🤖");
   const [tab,setTab]=useState(0);
   const [showLangs,setShowLangs]=useState(false);
+  const [fbType,setFbType]=useState(null);
+  const [fbText,setFbText]=useState("");
+  const [fbSent,setFbSent]=useState(false);
+  const [fbScreen,setFbScreen]=useState(null);
+  const [fbAll,setFbAll]=useState([]);
   const [rView,setRView]=useState("list");
   const [swIdx,setSwIdx]=useState(0);
   const [swLiked,setSwLiked]=useState([]);
@@ -148,7 +151,6 @@ export default function App(){
   const [quizLoading,setQuizLoading]=useState(false);
   const shownRef=useRef([]);
 
-  // Persist to localStorage
   useEffect(()=>{save("user",user);},[user]);
   useEffect(()=>{save("subs",subs);},[subs]);
   useEffect(()=>{save("prof",prof);},[prof]);
@@ -407,6 +409,7 @@ export default function App(){
         {s:"wl",i:"📋",t:"Watchlist",d:`${wl.length} saved`},
         {s:"history",i:"🕐",t:"Watch History",d:`${Object.keys(seen).length} watched · ${Object.keys(rat).length} rated`},
         {s:"edit-subs",i:"📺",t:"Streaming Services",d:subs.length>0?subs.join(", "):"None selected"},
+        {s:"feedback",i:"💬",t:"Send Feedback",d:"Report a bug or share what you love"},
       ].map(x=><button key={x.s} onClick={()=>setScr(x.s)}
         style={{...cd,width:"100%",padding:"14px 16px",display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
         <div style={{display:"flex",alignItems:"center",gap:12}}>
@@ -724,7 +727,7 @@ export default function App(){
         try{
           const ctrl=new AbortController();setTimeout(()=>ctrl.abort(),25000);
           var qStr=answers.map(function(a,i){return "Q"+(i+1)+": "+a;}).join(", ");
-            const txt=await askAI("Based on these movie quiz answers, give a fun movie personality result. Answers: "+qStr+". Return ONLY JSON with these fields: type (creative name), emoji (1 emoji), description (2-3 fun sentences), topGenres (array of 2 genres), spiritMovie (a movie title), color (hex color). No markdown, no backticks, pure JSON only.",ctrl.signal);
+          const txt=await askAI("Based on these movie quiz answers, give a fun movie personality result. Answers: "+qStr+". Return ONLY JSON with fields: type (creative name), emoji (1 emoji), description (2-3 fun sentences), topGenres (array of 2 genres), spiritMovie (a movie title), color (hex color). No markdown, no backticks, pure JSON only.",ctrl.signal);
           const m=txt.replace(/```json|```/g,"").trim().match(/\{[\s\S]*\}/);
           if(m)setQuizResult(JSON.parse(m[0]));
           else setQuizResult(TYPES[Math.floor(Math.random()*TYPES.length)]);
@@ -777,6 +780,85 @@ export default function App(){
             {o}
           </button>)}
         </div>
+      </div>;
+    }
+
+    // ── FEEDBACK ──
+    if(scr==="feedback"){
+      const FB_TYPES=[
+        {e:"🐛",l:"Bug",d:"Something isn't working"},
+        {e:"🎬",l:"Wrong Movie",d:"Got a bad recommendation"},
+        {e:"📺",l:"Wrong Platform",d:"Movie isn't on this service"},
+        {e:"💡",l:"Feature Idea",d:"I wish the app could..."},
+        {e:"❤️",l:"Love It",d:"Something I really enjoyed"},
+      ];
+      const FB_SCREENS=["Login","Home","Find a Flick","Results","Movie Detail","Watchlist","Blind Pick","Quiz","Other"];
+      const submitFb=()=>{
+        if(!fbType||!fbText.trim())return;
+        const entry={type:fbType,text:fbText.trim(),screen:fbScreen||"Not specified",time:new Date().toLocaleString()};
+        setFbAll(prev=>[entry,...prev]);
+        setFbSent(true);
+        // In deployed version, this would POST to a webhook:
+        // fetch('/api/feedback', {method:'POST', body:JSON.stringify(entry)})
+      };
+      if(fbSent)return <div className="fu">
+        <button style={bk} onClick={()=>{setFbSent(false);setFbType(null);setFbText("");setScr("account");}}>← Account</button>
+        <div style={{textAlign:"center",padding:"40px 0"}}>
+          <div style={{fontSize:56,marginBottom:14}}>🎉</div>
+          <h2 style={{...hd,fontSize:22,marginBottom:8}}>Thanks for your feedback!</h2>
+          <p style={{...sb,lineHeight:1.6,marginBottom:24}}>This helps us make FlickDrop better for everyone.</p>
+          <button style={pbtn(true)} onClick={()=>{setFbSent(false);setFbType(null);setFbText("");setScr("home");}}>Back to Home</button>
+          <button onClick={()=>{setFbSent(false);setFbType(null);setFbText("");}} style={{width:"100%",padding:"12px",fontSize:14,fontWeight:600,fontFamily:F,color:"rgba(255,255,255,0.4)",marginTop:8}}>Send More Feedback</button>
+        </div>
+      </div>;
+      return <div className="fu">
+        <button style={bk} onClick={()=>{setFbType(null);setFbText("");setScr("account");}}>← Account</button>
+        <h2 style={{...hd,fontSize:22,marginBottom:4}}>💬 Send Feedback</h2>
+        <p style={{...sb,marginBottom:16}}>No personal info collected — just what we need to improve</p>
+
+        <p style={lb}>WHAT'S THIS ABOUT?</p>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7,marginBottom:18}}>
+          {FB_TYPES.map(t=><button key={t.l} onClick={()=>setFbType(t.l)}
+            style={{display:"flex",alignItems:"center",gap:8,padding:"10px 12px",borderRadius:12,textAlign:"left",
+              border:fbType===t.l?"1.5px solid rgba(232,147,47,0.5)":"1.5px solid rgba(255,255,255,0.06)",
+              background:fbType===t.l?"rgba(232,147,47,0.1)":"rgba(255,255,255,0.03)"}}>
+            <span style={{fontSize:20}}>{t.e}</span>
+            <div><div style={{fontSize:13,fontWeight:600,color:fbType===t.l?A:"rgba(255,255,255,0.5)"}}>{t.l}</div>
+              <div style={{fontSize:10,color:"rgba(255,255,255,0.25)"}}>{t.d}</div></div>
+          </button>)}
+        </div>
+
+        {fbType&&<>
+          <p style={lb}>WHICH SCREEN? (OPTIONAL)</p>
+          <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:16}}>
+            {FB_SCREENS.map(s=><button key={s} onClick={()=>setFbScreen(prev=>prev===s?null:s)}
+              style={{padding:"6px 12px",borderRadius:10,fontSize:12,fontWeight:600,fontFamily:F,
+                border:fbScreen===s?"1.5px solid rgba(232,147,47,0.5)":"1.5px solid rgba(255,255,255,0.06)",
+                background:fbScreen===s?"rgba(232,147,47,0.12)":"rgba(255,255,255,0.03)",
+                color:fbScreen===s?A:"rgba(255,255,255,0.35)"}}>{s}</button>)}
+          </div>
+
+          <p style={lb}>TELL US MORE</p>
+          <textarea value={fbText} onChange={e=>setFbText(e.target.value)}
+            placeholder={fbType==="Bug"?"What happened? What did you expect?":fbType==="Love It"?"What did you enjoy? We'd love to know!":"Describe in a few words..."}
+            rows={4} style={{width:"100%",padding:"12px 14px",borderRadius:12,fontSize:14,fontFamily:F,resize:"vertical",
+              background:"rgba(255,255,255,0.05)",border:"1.5px solid rgba(255,255,255,0.08)",color:"#fff",marginBottom:16,lineHeight:1.5}}/>
+
+          <button style={pbtn(fbText.trim().length>0)} onClick={submitFb}>Send Feedback</button>
+        </>}
+
+        {fbAll.length>0&&<>
+          <p style={{...lb,marginTop:24}}>RECENT FEEDBACK ({fbAll.length})</p>
+          {fbAll.slice(0,5).map((f,i)=><div key={i} style={{...cd,padding:"10px 14px",marginBottom:6}}>
+            <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}>
+              <span style={{fontSize:14}}>{FB_TYPES.find(t=>t.l===f.type)?.e||"💬"}</span>
+              <span style={{fontSize:12,fontWeight:600,color:A}}>{f.type}</span>
+              {f.screen&&f.screen!=="Not specified"&&<span style={{fontSize:10,color:"rgba(255,255,255,0.25)"}}>· {f.screen}</span>}
+            </div>
+            <p style={{fontSize:12,color:"rgba(255,255,255,0.45)",lineHeight:1.4}}>{f.text}</p>
+            <p style={{fontSize:10,color:"rgba(255,255,255,0.15)",marginTop:4}}>{f.time}</p>
+          </div>)}
+        </>}
       </div>;
     }
 
