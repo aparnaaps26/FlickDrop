@@ -102,9 +102,9 @@ async function askAI(prompt, signal) {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, signal,
         body: JSON.stringify({ prompt, max_tokens: 2000 }),
       });
-      if (!res.ok) throw new Error('API error: ' + res.status);
       const data = await res.json();
-      if (data.error) throw new Error(data.error);
+      if (!res.ok || data.error) throw new Error(data.error || 'API error: ' + res.status);
+      if (!data.text) throw new Error('Empty response from AI');
       return data.text;
     } catch (e) {
       if (e.name === 'AbortError' || attempt === 1) throw e;
