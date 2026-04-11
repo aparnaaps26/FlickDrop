@@ -34,8 +34,12 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         model: "llama-3.1-8b-instant",
         max_tokens,
-        temperature: 0.9,
-        messages: [{ role: "user", content: prompt }],
+        temperature: 0.8,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: "You are a movie recommendation API. You MUST respond with valid JSON only. Use double quotes for all keys and string values. Never use single quotes. Never use trailing commas. Never include comments. Do not use apostrophes in text - write cannot instead of can't, do not instead of don't, it is instead of it's." },
+          { role: "user", content: prompt }
+        ],
       }),
     });
 
