@@ -97,25 +97,47 @@ const save=(k,v)=>{try{localStorage.setItem("fd_"+k,JSON.stringify(v));}catch{}}
 
 function fixJSON(raw) {
   let s = raw.replace(/```json|```/g, "").trim();
-  // Extract array or object
   let m = s.match(/\[[\s\S]*\]/);
   if (!m) m = s.match(/\{[\s\S]*\}/);
   if (!m) throw new Error("No JSON found in response");
   s = m[0];
-  // Fix single quotes to double quotes (but not inside words like "don't")
-  s = s.replace(/'/g, '"');
-  // Fix trailing commas before ] or }
-  s = s.replace(/,\s*([}\]])/g, "$1");
-  // Fix unquoted keys like { title: "..." }
-  s = s.replace(/([{,]\s*)(\w+)\s*:/g, '$1"$2":');
-  // Remove JS comments
+  // First try as-is
+  try { return JSON.parse(s); } catch {}
+  // Remove JS-style comments
   s = s.replace(/\/\/[^\n]*/g, "");
-  try { return JSON.parse(s); } catch (e) {
-    // Last resort: try to fix common Llama issues
-    s = s.replace(/\n/g, " ").replace(/\t/g, " ");
-    s = s.replace(/,\s*([}\]])/g, "$1");
-    return JSON.parse(s);
-  }
+  // Fix trailing commas
+  s = s.replace(/,\s*([}\]])/g, "$1");
+  // Fix unquoted keys: { title: "..." } → { "title": "..." }
+  s = s.replace(/([{,]\s*)([a-zA-Z_]\w*)\s*:/g, '$1"$2":');
+  try { return JSON.parse(s); } catch {}
+  // Fix single-quoted strings: replace ' with " but NOT apostrophes inside words
+  // Strategy: replace 'value' patterns (single-quoted strings) with "value"
+  s = s.replace(/'([^']{0,500})'/g, function(match, inner) {
+    // If it looks like a string value (not a contraction like don't), convert
+    if (inner.length > 1 || /^[^a-zA-Z]/.test(inner)) return '"' + inner.replace(/"/g, '\\"') + '"';
+    return match;
+  });
+  try { return JSON.parse(s); } catch {}
+  // Nuclear option: extract data manually with regex
+  try {
+    const items = [];
+    const objPattern = /\{[^{}]*\}/g;
+    let om;
+    while ((om = objPattern.exec(s)) !== null) {
+      let obj = om[0];
+      // Fix any remaining issues
+      obj = obj.replace(/([{,]\s*)([a-zA-Z_]\w*)\s*:/g, '$1"$2":');
+      obj = obj.replace(/:\s*'([^']*)'/g, ': "$1"');
+      obj = obj.replace(/,\s*}/g, "}");
+      // Escape unescaped control chars in string values
+      obj = obj.replace(/"([^"]*?)"/g, function(m2, inner) {
+        return '"' + inner.replace(/\n/g, " ").replace(/\t/g, " ").replace(/\r/g, "") + '"';
+      });
+      try { items.push(JSON.parse(obj)); } catch {}
+    }
+    if (items.length > 0) return items.length === 1 ? items[0] : items;
+  } catch {}
+  throw new Error("Could not parse AI response");
 }
 
 async function askAI(prompt, signal) {
@@ -225,13 +247,29 @@ export default function App(){
     const exPlat=subs.length>0?subs[0]:"Netflix";
 
     const pr=mode==="couple"
-      ?`Return exactly ${total} movies as JSON array.${distRule}${langClause}${ec}${taste}${subList} Mix popular+hidden gems.${sc} Genre: pick 1-2 from ONLY: Action, Comedy, Drama, Romance, Thriller, Horror, Sci-Fi, Fantasy, Animation, Musical, Documentary, Mystery, Adventure, Family. Context: couple's movie night. Return ONLY: [{"title":"...","year":2020,"genre":"Drama, Thriller","language":"...","mood":"...","whyWatch":"...","contentRating":"...","platforms":["${exPlat}"]}]. No markdown. Use strict JSON with double-quoted keys and values.`
-      :`Return exactly ${total} movies as JSON array.${distRule} Kids ages: ${ages.join(",")}.${langClause}${ec}${taste}${subList}${sc} Genre: pick 1-2 from ONLY: Action, Comedy, Drama, Romance, Thriller, Horror, Sci-Fi, Fantasy, Animation, Musical, Documentary, Mystery, Adventure, Family. Context: family movie night, age-appropriate. Return ONLY: [{"title":"...","year":2020,"genre":"Action, Adventure","language":"...","mood":"...","whyWatch":"...","ageAppropriate":"...","platforms":["${exPlat}"]}]. No markdown. Use strict JSON with double-quoted keys and values.`;
+      ?`Return exactly ${total} movies.${distRule}${langClause}${ec}${taste}${subList} Mix popular+hidden gems.${sc} Genre: pick 1-2 from ONLY: Action, Comedy, Drama, Romance, Thriller, Horror, Sci-Fi, Fantasy, Animation, Musical, Documentary, Mystery, Adventure, Family. Context: couple movie night. Return JSON object: {"movies":[{"title":"...","year":2020,"genre":"Drama, Thriller","language":"...","mood":"...","whyWatch":"...","contentRating":"...","platforms":["${exPlat}"]}]}. Do not use apostrophes in text.`
+      :`Return exactly ${total} movies.${distRule} Kids ages: ${ages.join(",")}.${langClause}${ec}${taste}${subList}${sc} Genre: pick 1-2 from ONLY: Action, Comedy, Drama, Romance, Thriller, Horror, Sci-Fi, Fantasy, Animation, Musical, Documentary, Mystery, Adventure, Family. Context: family movie night, age-appropriate. Return JSON object: {"movies":[{"title":"...","year":2020,"genre":"Action, Adventure","language":"...","mood":"...","whyWatch":"...","ageAppropriate":"...","platforms":["${exPlat}"]}]}. Do not use apostrophes in text.`;
     try{
       const ctrl=new AbortController();timer=setTimeout(()=>ctrl.abort(),40000);
-      const txt=await askAI(pr,ctrl.signal);
-      const parsed=fixJSON(txt);
-      if(!Array.isArray(parsed))throw new Error("Expected array");
+      let parsed=null;
+      for(let tryN=0;tryN<3;tryN++){
+        try{
+          const txt=await askAI(pr,ctrl.signal);
+          let result=fixJSON(txt);
+          // Handle both {"movies":[...]} and raw [...]
+          if(result&&!Array.isArray(result)){
+            const vals=Object.values(result);
+            const arr=vals.find(v=>Array.isArray(v));
+            if(arr)result=arr;
+          }
+          if(Array.isArray(result)&&result.length>0&&result[0].title){parsed=result;break;}
+        }catch(parseErr){
+          if(parseErr.name==="AbortError")throw parseErr;
+          if(tryN===2)throw parseErr;
+          await new Promise(r=>setTimeout(r,800));
+        }
+      }
+      if(!parsed||!Array.isArray(parsed))throw new Error("Could not get valid results. Try again!");
       parsed.forEach(p=>{if(p.title&&!shownRef.current.includes(p.title))shownRef.current.push(p.title);});
       setMov(parsed);
     }catch(e){setErr(e.name==="AbortError"?"Timed out. Try again!":(e.message||"Error"));setMov([{error:true}]);}
