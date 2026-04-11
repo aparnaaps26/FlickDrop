@@ -727,10 +727,14 @@ export default function App(){
     if(scr==="blindpick"){
       const fetchBP=async()=>{
         setBpLoading(true);setBpMov(null);setBpRevealed(false);setBpGuess("");
+        const genres=["comedy","romance","action","thriller","sci-fi","animation","musical","drama","adventure","horror","mystery","fantasy","historical","sports"];
+        const g=genres[Math.floor(Math.random()*genres.length)];
         try{
           const ctrl=new AbortController();setTimeout(()=>ctrl.abort(),40000);
-          const txt=await askAI("Pick 1 well-known movie and describe its plot in 2-3 sentences WITHOUT mentioning the title, any character names, or actor names. Make it tricky but fair. Return ONLY JSON with fields: plot, title, year, genre, hint (1 word). No markdown, no backticks, strict valid JSON only. Use double quotes for all keys and values.",ctrl.signal);
-          try{setBpMov(fixJSON(txt));}catch{}
+          const txt=await askAI("Pick 1 well-known "+g+" movie from any decade and describe its plot in 2-3 sentences WITHOUT mentioning the title, any character names, or actor names. Make it tricky but fair. The movie should be popular enough that most people would know it. Return a JSON object with fields: plot, title, year, genre, hint (a 1-word hint). Do not use apostrophes - write do not instead of don't.",ctrl.signal);
+          let result=fixJSON(txt);
+          if(result&&!result.plot){const vals=Object.values(result);const obj=vals.find(v=>v&&typeof v==="object"&&v.plot);if(obj)result=obj;}
+          if(result&&result.plot)setBpMov(result);
         }catch(e){console.error(e);}
         finally{setBpLoading(false);}
       };
@@ -792,8 +796,21 @@ export default function App(){
         try{
           const ctrl=new AbortController();setTimeout(()=>ctrl.abort(),40000);
           var qStr=answers.map(function(a,i){return "Q"+(i+1)+": "+a;}).join(", ");
-          const txt=await askAI("Based on these movie quiz answers, give a fun movie personality result. Answers: "+qStr+". Return ONLY JSON with fields: type (creative name), emoji (1 emoji), description (2-3 fun sentences), topGenres (array of 2 genres), spiritMovie (a movie title), color (hex color). No markdown, no backticks, strict valid JSON only. Use double quotes for all keys and values.",ctrl.signal);
-          try{setQuizResult(fixJSON(txt));}catch{setQuizResult(TYPES[Math.floor(Math.random()*TYPES.length)]);}
+          let result=null;
+          for(let tryN=0;tryN<3;tryN++){
+            try{
+              const txt=await askAI("Based on these movie quiz answers, give a fun movie personality result. Answers: "+qStr+". Return a JSON object with these exact fields: type (a creative personality name), emoji (1 emoji character), description (2-3 fun sentences about their movie personality, do not use apostrophes), topGenres (array of 2 genre strings), spiritMovie (a movie title that represents them), color (a hex color string). Do not use apostrophes in any text.",ctrl.signal);
+              let parsed=fixJSON(txt);
+              if(parsed&&!parsed.type){const vals=Object.values(parsed);const obj=vals.find(v=>v&&typeof v==="object"&&v.type);if(obj)parsed=obj;}
+              if(parsed&&parsed.type){result=parsed;break;}
+            }catch(pe){
+              if(pe.name==="AbortError")throw pe;
+              if(tryN===2)throw pe;
+              await new Promise(r=>setTimeout(r,800));
+            }
+          }
+          if(result)setQuizResult(result);
+          else setQuizResult(TYPES[Math.floor(Math.random()*TYPES.length)]);
         }catch{setQuizResult(TYPES[Math.floor(Math.random()*TYPES.length)]);}
         finally{setQuizLoading(false);}
       };
@@ -861,8 +878,7 @@ export default function App(){
         const entry={type:fbType,text:fbText.trim(),screen:fbScreen||"Not specified",time:new Date().toLocaleString()};
         setFbAll(prev=>[entry,...prev]);
         setFbSent(true);
-        // In deployed version, this would POST to a webhook:
-        // fetch('/api/feedback', {method:'POST', body:JSON.stringify(entry)})
+        fetch('/api/feedback',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(entry)}).catch(()=>{});
       };
       if(fbSent)return <div className="fu">
         <button style={bk} onClick={()=>{setFbSent(false);setFbType(null);setFbText("");setScr("account");}}>← Account</button>
