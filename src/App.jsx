@@ -95,6 +95,29 @@ const avBg=emoji=>AVATARS.find(a=>a.emoji===emoji)?.bg||"#1a1a2e";
 const load=(k,def)=>{try{const v=localStorage.getItem("fd_"+k);return v?JSON.parse(v):def;}catch{return def;}};
 const save=(k,v)=>{try{localStorage.setItem("fd_"+k,JSON.stringify(v));}catch{}};
 
+function fixJSON(raw) {
+  let s = raw.replace(/```json|```/g, "").trim();
+  // Extract array or object
+  let m = s.match(/\[[\s\S]*\]/);
+  if (!m) m = s.match(/\{[\s\S]*\}/);
+  if (!m) throw new Error("No JSON found in response");
+  s = m[0];
+  // Fix single quotes to double quotes (but not inside words like "don't")
+  s = s.replace(/'/g, '"');
+  // Fix trailing commas before ] or }
+  s = s.replace(/,\s*([}\]])/g, "$1");
+  // Fix unquoted keys like { title: "..." }
+  s = s.replace(/([{,]\s*)(\w+)\s*:/g, '$1"$2":');
+  // Remove JS comments
+  s = s.replace(/\/\/[^\n]*/g, "");
+  try { return JSON.parse(s); } catch (e) {
+    // Last resort: try to fix common Llama issues
+    s = s.replace(/\n/g, " ").replace(/\t/g, " ");
+    s = s.replace(/,\s*([}\]])/g, "$1");
+    return JSON.parse(s);
+  }
+}
+
 async function askAI(prompt, signal) {
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
@@ -202,13 +225,13 @@ export default function App(){
     const exPlat=subs.length>0?subs[0]:"Netflix";
 
     const pr=mode==="couple"
-      ?`Return exactly ${total} movies as JSON array.${distRule}${langClause}${ec}${taste}${subList} Mix popular+hidden gems.${sc} Genre: pick 1-2 from ONLY: Action, Comedy, Drama, Romance, Thriller, Horror, Sci-Fi, Fantasy, Animation, Musical, Documentary, Mystery, Adventure, Family. Context: couple's movie night. Return ONLY: [{"title":"...","year":2020,"genre":"Drama, Thriller","language":"...","mood":"...","whyWatch":"...","contentRating":"...","platforms":["${exPlat}"]}]. No markdown.`
-      :`Return exactly ${total} movies as JSON array.${distRule} Kids ages: ${ages.join(",")}.${langClause}${ec}${taste}${subList}${sc} Genre: pick 1-2 from ONLY: Action, Comedy, Drama, Romance, Thriller, Horror, Sci-Fi, Fantasy, Animation, Musical, Documentary, Mystery, Adventure, Family. Context: family movie night, age-appropriate. Return ONLY: [{"title":"...","year":2020,"genre":"Action, Adventure","language":"...","mood":"...","whyWatch":"...","ageAppropriate":"...","platforms":["${exPlat}"]}]. No markdown.`;
+      ?`Return exactly ${total} movies as JSON array.${distRule}${langClause}${ec}${taste}${subList} Mix popular+hidden gems.${sc} Genre: pick 1-2 from ONLY: Action, Comedy, Drama, Romance, Thriller, Horror, Sci-Fi, Fantasy, Animation, Musical, Documentary, Mystery, Adventure, Family. Context: couple's movie night. Return ONLY: [{"title":"...","year":2020,"genre":"Drama, Thriller","language":"...","mood":"...","whyWatch":"...","contentRating":"...","platforms":["${exPlat}"]}]. No markdown. Use strict JSON with double-quoted keys and values.`
+      :`Return exactly ${total} movies as JSON array.${distRule} Kids ages: ${ages.join(",")}.${langClause}${ec}${taste}${subList}${sc} Genre: pick 1-2 from ONLY: Action, Comedy, Drama, Romance, Thriller, Horror, Sci-Fi, Fantasy, Animation, Musical, Documentary, Mystery, Adventure, Family. Context: family movie night, age-appropriate. Return ONLY: [{"title":"...","year":2020,"genre":"Action, Adventure","language":"...","mood":"...","whyWatch":"...","ageAppropriate":"...","platforms":["${exPlat}"]}]. No markdown. Use strict JSON with double-quoted keys and values.`;
     try{
       const ctrl=new AbortController();timer=setTimeout(()=>ctrl.abort(),40000);
       const txt=await askAI(pr,ctrl.signal);
-      const m=txt.replace(/```json|```/g,"").trim().match(/\[[\s\S]*\]/);if(!m)throw new Error("Parse error");
-      const parsed=JSON.parse(m[0]);
+      const parsed=fixJSON(txt);
+      if(!Array.isArray(parsed))throw new Error("Expected array");
       parsed.forEach(p=>{if(p.title&&!shownRef.current.includes(p.title))shownRef.current.push(p.title);});
       setMov(parsed);
     }catch(e){setErr(e.name==="AbortError"?"Timed out. Try again!":(e.message||"Error"));setMov([{error:true}]);}
@@ -668,9 +691,8 @@ export default function App(){
         setBpLoading(true);setBpMov(null);setBpRevealed(false);setBpGuess("");
         try{
           const ctrl=new AbortController();setTimeout(()=>ctrl.abort(),40000);
-          const txt=await askAI("Pick 1 well-known movie and describe its plot in 2-3 sentences WITHOUT mentioning the title, any character names, or actor names. Make it tricky but fair. Return ONLY JSON with fields: plot, title, year, genre, hint (1 word). No markdown, no backticks, pure JSON only.",ctrl.signal);
-          const m=txt.replace(/```json|```/g,"").trim().match(/\{[\s\S]*\}/);
-          if(m)setBpMov(JSON.parse(m[0]));
+          const txt=await askAI("Pick 1 well-known movie and describe its plot in 2-3 sentences WITHOUT mentioning the title, any character names, or actor names. Make it tricky but fair. Return ONLY JSON with fields: plot, title, year, genre, hint (1 word). No markdown, no backticks, strict valid JSON only. Use double quotes for all keys and values.",ctrl.signal);
+          try{setBpMov(fixJSON(txt));}catch{}
         }catch(e){console.error(e);}
         finally{setBpLoading(false);}
       };
@@ -732,10 +754,8 @@ export default function App(){
         try{
           const ctrl=new AbortController();setTimeout(()=>ctrl.abort(),40000);
           var qStr=answers.map(function(a,i){return "Q"+(i+1)+": "+a;}).join(", ");
-          const txt=await askAI("Based on these movie quiz answers, give a fun movie personality result. Answers: "+qStr+". Return ONLY JSON with fields: type (creative name), emoji (1 emoji), description (2-3 fun sentences), topGenres (array of 2 genres), spiritMovie (a movie title), color (hex color). No markdown, no backticks, pure JSON only.",ctrl.signal);
-          const m=txt.replace(/```json|```/g,"").trim().match(/\{[\s\S]*\}/);
-          if(m)setQuizResult(JSON.parse(m[0]));
-          else setQuizResult(TYPES[Math.floor(Math.random()*TYPES.length)]);
+          const txt=await askAI("Based on these movie quiz answers, give a fun movie personality result. Answers: "+qStr+". Return ONLY JSON with fields: type (creative name), emoji (1 emoji), description (2-3 fun sentences), topGenres (array of 2 genres), spiritMovie (a movie title), color (hex color). No markdown, no backticks, strict valid JSON only. Use double quotes for all keys and values.",ctrl.signal);
+          try{setQuizResult(fixJSON(txt));}catch{setQuizResult(TYPES[Math.floor(Math.random()*TYPES.length)]);}
         }catch{setQuizResult(TYPES[Math.floor(Math.random()*TYPES.length)]);}
         finally{setQuizLoading(false);}
       };
