@@ -262,11 +262,11 @@ export default function App(){
 
     const kidsFilter=mode==="family"?` IMPORTANT: Only suggest movies rated ${kidsRating} or lower. No movies above ${kidsRating} rating. Every movie must be safe for children.`:"";
 
-    const honesty=` HONESTY RULE: Only suggest movies you are CERTAIN exist. If the combination (mood + language + platform) has fewer real movies than requested, return however many real ones you can find. Add a "note" field in the JSON explaining what was available and what was not. For example if asked for Tamil zombie movies on Netflix but only 1 exists, return that 1 and fill remaining slots with the closest match (like Tamil horror or Hindi zombie) and explain in each movie's "matchNote" field what criteria it does and does not match. Never invent fake movie titles.`;
+    const honesty=` RULES: Only suggest real movies you are certain exist. Never invent titles. If not enough exact matches exist, fill with closest alternatives. Add short "matchNote" (5-10 words max) only on movies that do not exactly match the requested criteria. Add a brief "note" (1 sentence max) only if some criteria could not be fully met.`;
 
     const pr=mode==="couple"
-      ?`Return exactly ${total} movies.${distRule}${langClause}${ec}${taste}${subList} Mix popular+hidden gems.${sc}${honesty} Genre: pick 1-2 from ONLY: Action, Comedy, Drama, Romance, Thriller, Horror, Sci-Fi, Fantasy, Animation, Musical, Documentary, Mystery, Adventure, Family. Context: couple movie night. Return JSON object: {"movies":[{"title":"...","year":2020,"genre":"Drama, Thriller","language":"...","mood":"...","whyWatch":"...","contentRating":"...","platforms":["${exPlat}"],"matchNote":"..."}],"note":"..."}. Do not use apostrophes in text.`
-      :`Return exactly ${total} movies.${distRule} Kids ages: ${ages.join(",")}.${kidsFilter}${langClause}${ec}${taste}${subList}${sc}${honesty} Genre: pick 1-2 from ONLY: Action, Comedy, Drama, Romance, Thriller, Horror, Sci-Fi, Fantasy, Animation, Musical, Documentary, Mystery, Adventure, Family. Context: family movie night, age-appropriate. Return JSON object: {"movies":[{"title":"...","year":2020,"genre":"Action, Adventure","language":"...","mood":"...","whyWatch":"...","contentRating":"...","ageAppropriate":"...","platforms":["${exPlat}"],"matchNote":"..."}],"note":"..."}. Do not use apostrophes in text.`;
+      ?`Return exactly ${total} movies.${distRule}${langClause}${ec}${taste}${subList} Mix popular+hidden gems.${sc}${honesty} Genre: pick 1-2 from ONLY: Action, Comedy, Drama, Romance, Thriller, Horror, Sci-Fi, Fantasy, Animation, Musical, Documentary, Mystery, Adventure, Family. Context: couple movie night. Return JSON: {"movies":[{"title":"...","year":2020,"genre":"...","language":"...","mood":"...","whyWatch":"1 short sentence","contentRating":"...","platforms":["${exPlat}"],"matchNote":""}],"note":""}. Keep whyWatch under 15 words. No apostrophes.`
+      :`Return exactly ${total} movies.${distRule} Kids ages: ${ages.join(",")}.${kidsFilter}${langClause}${ec}${taste}${subList}${sc}${honesty} Genre: pick 1-2 from ONLY: Action, Comedy, Drama, Romance, Thriller, Horror, Sci-Fi, Fantasy, Animation, Musical, Documentary, Mystery, Adventure, Family. Context: family movie night. Return JSON: {"movies":[{"title":"...","year":2020,"genre":"...","language":"...","mood":"...","whyWatch":"1 short sentence","contentRating":"...","ageAppropriate":"...","platforms":["${exPlat}"],"matchNote":""}],"note":""}. Keep whyWatch under 15 words. No apostrophes.`;
     try{
       const ctrl=new AbortController();timer=setTimeout(()=>ctrl.abort(),40000);
       let parsed=null;
@@ -618,15 +618,19 @@ export default function App(){
           <button onClick={()=>setShowLangs(!showLangs)}
             style={{...cd,width:"100%",padding:"12px 14px",display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
             <div><p style={{...lb,marginBottom:2,fontSize:11}}>LANGUAGE</p>
-              <p style={{fontSize:13,color:A,fontWeight:600}}>{selLangs.join(", ")}</p></div>
+              <p style={{fontSize:13,color:A,fontWeight:600}}>{selLangs.length>3?selLangs.slice(0,3).join(", ")+" +"+(selLangs.length-3):selLangs.join(", ")}</p></div>
             <span style={{color:"rgba(255,255,255,0.3)",fontSize:14}}>{showLangs?"▲":"▼"}</span>
           </button>
-          {showLangs&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginBottom:10}}>
+          {showLangs&&<div style={{maxHeight:180,overflowY:"auto",marginBottom:10,padding:"6px 0",
+            borderRadius:12,background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.06)"}}>
             {LANGS.map(l=><button key={l.c} onClick={()=>setLangs(p=>tg(p,l.c))}
-              style={{padding:"8px 10px",borderRadius:10,fontSize:13,fontWeight:600,fontFamily:F,textAlign:"left",
-                border:langs.includes(l.c)?"1.5px solid rgba(232,147,47,0.5)":"1.5px solid rgba(255,255,255,0.06)",
-                background:langs.includes(l.c)?"rgba(232,147,47,0.12)":"rgba(255,255,255,0.03)",
-                color:langs.includes(l.c)?A:"rgba(255,255,255,0.4)"}}>{l.e} {l.l}</button>)}
+              style={{width:"100%",padding:"10px 14px",display:"flex",alignItems:"center",justifyContent:"space-between",
+                fontSize:14,fontWeight:600,fontFamily:F,textAlign:"left",
+                background:langs.includes(l.c)?"rgba(232,147,47,0.08)":"transparent",
+                color:langs.includes(l.c)?A:"rgba(255,255,255,0.4)"}}>
+              <span>{l.e}  {l.l}</span>
+              {langs.includes(l.c)&&<span style={{color:A,fontSize:16}}>✓</span>}
+            </button>)}
           </div>}
           <p style={lb}>MOVIE ERA</p>
           <p style={{fontSize:11,color:"rgba(255,255,255,0.2)",marginBottom:8}}>Optional · Select multiple for variety</p>
@@ -680,16 +684,34 @@ export default function App(){
               {m.platforms.map((p,j)=><Badge key={j} n={p}/>)}</div>}
           </button>)}
           <button style={pbtn(true)} onClick={doFetch}>🎬 Fresh Drop</button>
-          <button onClick={async()=>{
-            const text=mov.filter(m=>m.title).map((m,i)=>(i+1)+". "+m.title+" ("+m.year+") - "+m.genre+(m.platforms?.length?" ["+m.platforms.join(", ")+"]":"")).join("\n");
-            const shareData={title:"FlickDrop Picks",text:"Tonight's FlickDrop picks:\n\n"+text+"\n\nGet your own picks: "+window.location.href};
-            if(navigator.share){try{await navigator.share(shareData);}catch{}}
-            else{try{await navigator.clipboard.writeText(shareData.text);alert("Copied to clipboard!");}catch{}}
-          }} style={{width:"100%",padding:"14px",borderRadius:14,fontSize:14,fontWeight:700,fontFamily:F,
-            background:"rgba(232,147,47,0.08)",color:A,border:"1.5px solid rgba(232,147,47,0.2)",marginTop:8,
-            display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
-            📤 Share Picks
-          </button>
+          {(()=>{
+            const shareText=mov.filter(m=>m.title).map((m,i)=>(i+1)+". "+m.title+" ("+m.year+") - "+m.genre+(m.platforms?.length?" ["+m.platforms.join(", ")+"]":"")).join("\n");
+            const fullText="Tonight's FlickDrop picks:\n\n"+shareText+"\n\nGet your own picks: "+window.location.href;
+            const encoded=encodeURIComponent(fullText);
+            const subj=encodeURIComponent("Check out my FlickDrop picks!");
+            return <div style={{display:"flex",gap:8,marginTop:8}}>
+              <button onClick={()=>window.open("https://wa.me/?text="+encoded,"_blank")}
+                style={{flex:1,padding:"12px",borderRadius:12,fontSize:13,fontWeight:700,fontFamily:F,
+                  background:"rgba(37,211,102,0.1)",color:"#25D366",border:"1.5px solid rgba(37,211,102,0.25)",
+                  display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+                💬 WhatsApp
+              </button>
+              <button onClick={()=>window.open("mailto:?subject="+subj+"&body="+encoded)}
+                style={{flex:1,padding:"12px",borderRadius:12,fontSize:13,fontWeight:700,fontFamily:F,
+                  background:"rgba(232,147,47,0.08)",color:A,border:"1.5px solid rgba(232,147,47,0.2)",
+                  display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+                ✉️ Email
+              </button>
+              <button onClick={async()=>{
+                if(navigator.share){try{await navigator.share({title:"FlickDrop Picks",text:fullText});}catch{}}
+                else{try{await navigator.clipboard.writeText(fullText);alert("Copied!");}catch{}}
+              }} style={{flex:1,padding:"12px",borderRadius:12,fontSize:13,fontWeight:700,fontFamily:F,
+                  background:"rgba(255,255,255,0.05)",color:"rgba(255,255,255,0.5)",border:"1.5px solid rgba(255,255,255,0.08)",
+                  display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+                📤 More
+              </button>
+            </div>;
+          })()}
           <button onClick={()=>resetNav("home")} style={{width:"100%",padding:"12px",borderRadius:14,fontSize:14,fontWeight:600,fontFamily:F,color:"rgba(255,255,255,0.4)",marginTop:8}}>← Back to Home</button>
           <p style={{fontSize:10,color:"rgba(255,255,255,0.13)",textAlign:"center",marginTop:6}}>Streaming is AI-estimated</p>
         </>}
