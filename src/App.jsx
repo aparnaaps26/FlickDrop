@@ -266,20 +266,19 @@ export default function App(){
 
     const kidsFilter=mode==="family"?` IMPORTANT: Only suggest movies rated ${kidsRating} or lower. No movies above ${kidsRating} rating. Every movie must be safe for children.`:"";
 
-    const honesty=` RULES: Only suggest real movies you are certain exist. Never invent titles. If not enough exact matches exist, fill with closest alternatives. Add short "matchNote" (5-10 words max) only on movies that do not exactly match the requested criteria. Add a brief "note" (1 sentence max) only if some criteria could not be fully met.`;
+    const honesty=` RULES: Only suggest real movies you are certain exist. Never invent titles. Be STRICT about mood matching - a sad romance is NOT a comedy, a thriller is NOT feel-good. If not enough exact mood matches exist, return fewer movies and explain in "note". Add short "matchNote" only on imperfect matches.`;
 
     const pr=mode==="couple"
-      ?`Return exactly ${total} movies.${distRule}${langClause}${ec}${taste}${subList} Mix popular+hidden gems.${sc}${honesty} Genre: pick 1-2 from ONLY: Action, Comedy, Drama, Romance, Thriller, Horror, Sci-Fi, Fantasy, Animation, Musical, Documentary, Mystery, Adventure, Family. Context: couple movie night. Return JSON: {"movies":[{"title":"...","year":2020,"genre":"...","language":"...","mood":"...","whyWatch":"1 short sentence","contentRating":"...","platforms":["${exPlat}"],"matchNote":""}],"note":""}. Keep whyWatch under 15 words. No apostrophes.`
-      :`Return exactly ${total} movies.${distRule} Kids ages: ${ages.join(",")}.${kidsFilter}${langClause}${ec}${taste}${subList}${sc}${honesty} Genre: pick 1-2 from ONLY: Action, Comedy, Drama, Romance, Thriller, Horror, Sci-Fi, Fantasy, Animation, Musical, Documentary, Mystery, Adventure, Family. Context: family movie night. Return JSON: {"movies":[{"title":"...","year":2020,"genre":"...","language":"...","mood":"...","whyWatch":"1 short sentence","contentRating":"...","ageAppropriate":"...","platforms":["${exPlat}"],"matchNote":""}],"note":""}. Keep whyWatch under 15 words. No apostrophes.`;
+      ?`Return exactly ${total} movies.${distRule}${langClause}${ec}${taste}${sc}${honesty} Mix popular+hidden gems. Genre: pick 1-2 from ONLY: Action, Comedy, Drama, Romance, Thriller, Horror, Sci-Fi, Fantasy, Animation, Musical, Documentary, Mystery, Adventure, Family. Context: couple movie night. Return JSON: {"movies":[{"title":"...","year":2020,"genre":"...","language":"...","mood":"...","whyWatch":"1 short sentence","contentRating":"...","matchNote":""}],"note":""}. Keep whyWatch under 15 words. No apostrophes. Do NOT include platforms - we verify separately.`
+      :`Return exactly ${total} movies.${distRule} Kids ages: ${ages.join(",")}.${kidsFilter}${langClause}${ec}${taste}${sc}${honesty} Genre: pick 1-2 from ONLY: Action, Comedy, Drama, Romance, Thriller, Horror, Sci-Fi, Fantasy, Animation, Musical, Documentary, Mystery, Adventure, Family. Context: family movie night. Return JSON: {"movies":[{"title":"...","year":2020,"genre":"...","language":"...","mood":"...","whyWatch":"1 short sentence","contentRating":"...","ageAppropriate":"...","matchNote":""}],"note":""}. Keep whyWatch under 15 words. No apostrophes. Do NOT include platforms - we verify separately.`;
     try{
-      const ctrl=new AbortController();timer=setTimeout(()=>ctrl.abort(),40000);
+      const ctrl=new AbortController();timer=setTimeout(()=>ctrl.abort(),50000);
       let parsed=null;
       setAiNote("");
       for(let tryN=0;tryN<3;tryN++){
         try{
           const txt=await askAI(pr,ctrl.signal);
           let result=fixJSON(txt);
-          // Handle {"movies":[...],"note":"..."} wrapper
           if(result&&!Array.isArray(result)){
             if(result.note)setAiNote(result.note);
             const vals=Object.values(result);
@@ -296,6 +295,23 @@ export default function App(){
       if(!parsed||!Array.isArray(parsed))throw new Error("Could not get valid results. Try again!");
       parsed.forEach(p=>{if(p.title&&!shownRef.current.includes(p.title))shownRef.current.push(p.title);});
       setMov(parsed);
+      // Enrich with real TMDB data
+      try{
+        const tmdbRes=await fetch("/api/tmdb",{method:"POST",headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({movies:parsed.map(m=>({title:m.title,year:m.year}))})});
+        if(tmdbRes.ok){
+          const tmdbData=await tmdbRes.json();
+          if(tmdbData.results){
+            const enriched=parsed.map((m,i)=>{
+              const t=tmdbData.results.find(r=>r.title===m.title)||tmdbData.results[i]||{};
+              const real=t.platforms||[];
+              const filtered=subs.length>0?real.filter(p=>subs.includes(p)):real;
+              return{...m,platforms:filtered,allPlatforms:real,poster:t.poster||null,tmdbRating:t.tmdbRating||null};
+            });
+            setMov(enriched);
+          }
+        }
+      }catch(te){console.error("TMDB:",te);}
       updateStreak();
     }catch(e){setErr(e.name==="AbortError"?"Timed out. Try again!":(e.message||"Error"));setMov([{error:true}]);}
     finally{clearTimeout(timer);clearInterval(iv);setBusy(false);}
@@ -681,17 +697,22 @@ export default function App(){
             </div>
           </div>}
           {mov.map((m,i)=><button key={i} onClick={()=>{setDet(m);setScr("detail");}}
-            style={{...cd,padding:"14px 16px",marginBottom:10,width:"100%",textAlign:"left"}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"start"}}>
-              <h3 style={{fontFamily:DF,fontSize:15,fontWeight:700,color:"#fff",lineHeight:1.2}}>{m.title}</h3>
-              {isSn(m)&&<span style={{fontSize:10,color:A,fontWeight:700,marginLeft:6}}>SEEN ✓</span>}
+            style={{...cd,padding:0,marginBottom:10,width:"100%",textAlign:"left",display:"flex",overflow:"hidden"}}>
+            {m.poster&&<img src={m.poster} alt="" style={{width:70,minHeight:100,objectFit:"cover",borderRadius:"16px 0 0 16px"}}/>}
+            <div style={{flex:1,padding:"12px 14px"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"start"}}>
+                <h3 style={{fontFamily:DF,fontSize:15,fontWeight:700,color:"#fff",lineHeight:1.2}}>{m.title}</h3>
+                {isSn(m)&&<span style={{fontSize:10,color:A,fontWeight:700,marginLeft:6}}>SEEN ✓</span>}
+              </div>
+              <p style={{fontSize:12,color:"rgba(232,147,47,0.7)",fontWeight:600,margin:"3px 0 5px"}}>
+                {m.year} · {m.genre}{m.language&&m.language!=="English"?` · ${m.language}`:""}{m.tmdbRating?` · ⭐ ${m.tmdbRating.toFixed(1)}`:""}</p>
+              <p style={{fontSize:12,color:"rgba(255,255,255,0.42)",lineHeight:1.5,marginBottom:6}}>{m.whyWatch}</p>
+              {m.matchNote&&<p style={{fontSize:11,color:"rgba(232,147,47,0.5)",lineHeight:1.4,marginBottom:6,fontStyle:"italic"}}>⚠️ {m.matchNote}</p>}
+              {m.platforms?.length>0?<div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+                {m.platforms.map((p,j)=><Badge key={j} n={p}/>)}</div>
+              :m.allPlatforms?.length>0?<p style={{fontSize:10,color:"rgba(255,255,255,0.25)"}}>On {m.allPlatforms.join(", ")} (not in your subscriptions)</p>
+              :<p style={{fontSize:10,color:"rgba(255,255,255,0.2)"}}>Platform info unavailable</p>}
             </div>
-            <p style={{fontSize:12,color:"rgba(232,147,47,0.7)",fontWeight:600,margin:"3px 0 5px"}}>
-              {m.year} · {m.genre}{m.language&&m.language!=="English"?` · ${m.language}`:""}{m.mood?` · ${m.mood}`:""}</p>
-            <p style={{fontSize:12,color:"rgba(255,255,255,0.42)",lineHeight:1.5,marginBottom:6}}>{m.whyWatch}</p>
-            {m.matchNote&&<p style={{fontSize:11,color:"rgba(232,147,47,0.5)",lineHeight:1.4,marginBottom:6,fontStyle:"italic"}}>⚠️ {m.matchNote}</p>}
-            {m.platforms?.length>0&&<div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
-              {m.platforms.map((p,j)=><Badge key={j} n={p}/>)}</div>}
           </button>)}
           <button style={pbtn(true)} onClick={doFetch}>🎬 Fresh Drop</button>
           {(()=>{
@@ -723,7 +744,7 @@ export default function App(){
             </div>;
           })()}
           <button onClick={()=>resetNav("home")} style={{width:"100%",padding:"12px",borderRadius:14,fontSize:14,fontWeight:600,fontFamily:F,color:"rgba(255,255,255,0.4)",marginTop:8}}>← Back to Home</button>
-          <p style={{fontSize:10,color:"rgba(255,255,255,0.13)",textAlign:"center",marginTop:6}}>Streaming is AI-estimated</p>
+          <p style={{fontSize:10,color:"rgba(255,255,255,0.13)",textAlign:"center",marginTop:6}}>Streaming data from TMDB · availability may vary by region</p>
         </>}
       </div>;
     }
