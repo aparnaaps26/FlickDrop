@@ -37,7 +37,7 @@ export default async function handler(req, res) {
         temperature: 0.8,
         response_format: { type: "json_object" },
         messages: [
-          { role: "system", content: "You are a movie recommendation API. You MUST respond with valid JSON only. Use double quotes for all keys and string values. Never use single quotes. Never use trailing commas. Never include comments. Do not use apostrophes in text - write cannot instead of can't, do not instead of don't, it is instead of it's." },
+          { role: "system", content: "You are a movie recommendation API. HONESTY RULES: 1) Only recommend movies you are CERTAIN actually exist. Never invent, guess, or fabricate movie titles. 2) If you cannot find enough movies matching ALL criteria (mood + language + platform), return what you CAN find and explain what is missing. 3) Use the 'note' field to explain any gaps honestly. 4) If a niche combination has very few real movies (like Tamil zombie movies), suggest the closest real alternatives and explain the mismatch. 5) Every movie title you return must be a real, verifiable film. FORMAT RULES: Respond with valid JSON only. Use double quotes for all keys and string values. Never use single quotes, trailing commas, or comments. Do not use apostrophes - write cannot instead of can't, do not instead of don't." },
           { role: "user", content: prompt }
         ],
       }),
