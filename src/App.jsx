@@ -43,45 +43,30 @@ const MF = [
 ];
 const AGES = ["Under 5","5–8","9–12","13+"];
 const AVATARS = [
-  // Adults
-  { id: "man1", emoji: "👨", label: "Dad", bg: "#1a2a3d", cat: "People" },
-  { id: "woman1", emoji: "👩", label: "Mom", bg: "#3d1a3a", cat: "People" },
-  { id: "man2", emoji: "🧔", label: "Beardy", bg: "#2c1810", cat: "People" },
-  { id: "woman2", emoji: "👩‍🦱", label: "Curly", bg: "#2d1a2a", cat: "People" },
-  { id: "oldman", emoji: "👴", label: "Grandpa", bg: "#1a1a2a", cat: "People" },
-  { id: "oldwoman", emoji: "👵", label: "Grandma", bg: "#2a1a2a", cat: "People" },
+  // People
+  { id: "man", emoji: "👨", label: "Dad", bg: "#1a2a3d", cat: "People" },
+  { id: "woman", emoji: "👩", label: "Mom", bg: "#3d1a3a", cat: "People" },
+  { id: "grandpa", emoji: "👴", label: "Grandpa", bg: "#1a1a2a", cat: "People" },
+  { id: "grandma", emoji: "👵", label: "Grandma", bg: "#2a1a2a", cat: "People" },
   { id: "cool", emoji: "😎", label: "Cool One", bg: "#0f3460", cat: "People" },
-  { id: "nerd", emoji: "🤓", label: "Nerd", bg: "#1a2a2a", cat: "People" },
   // Kids
   { id: "boy", emoji: "👦", label: "Boy", bg: "#0a2a4d", cat: "Kids" },
   { id: "girl", emoji: "👧", label: "Girl", bg: "#3d0a2a", cat: "Kids" },
   { id: "baby", emoji: "👶", label: "Baby", bg: "#2a2a1a", cat: "Kids" },
-  { id: "kid1", emoji: "🧒", label: "Kid", bg: "#1a3a2a", cat: "Kids" },
   { id: "princess", emoji: "👸", label: "Princess", bg: "#3d1a3a", cat: "Kids" },
   { id: "prince", emoji: "🤴", label: "Prince", bg: "#1a2a3d", cat: "Kids" },
-  // Fantasy & Movie Characters
+  // Fantasy
   { id: "ninja", emoji: "🥷", label: "Ninja", bg: "#1a1a2e", cat: "Fantasy" },
-  { id: "wizard", emoji: "🧙‍♂️", label: "Wizard", bg: "#3a1078", cat: "Fantasy" },
   { id: "hero", emoji: "🦸‍♂️", label: "Hero", bg: "#0a1a3d", cat: "Fantasy" },
   { id: "heroine", emoji: "🦸‍♀️", label: "Heroine", bg: "#2a0a3d", cat: "Fantasy" },
-  { id: "villain", emoji: "🦹", label: "Villain", bg: "#3d0a0a", cat: "Fantasy" },
-  { id: "vampire", emoji: "🧛", label: "Vampire", bg: "#2d0a31", cat: "Fantasy" },
+  { id: "wizard", emoji: "🧙‍♂️", label: "Wizard", bg: "#3a1078", cat: "Fantasy" },
   { id: "fairy", emoji: "🧚", label: "Fairy", bg: "#1a3a3a", cat: "Fantasy" },
-  { id: "mermaid", emoji: "🧜‍♀️", label: "Mermaid", bg: "#0a2a3d", cat: "Fantasy" },
-  { id: "zombie", emoji: "🧟", label: "Zombie", bg: "#1a2a1a", cat: "Fantasy" },
-  { id: "astro", emoji: "🧑‍🚀", label: "Astronaut", bg: "#0f3460", cat: "Fantasy" },
-  { id: "pirate", emoji: "🏴‍☠️", label: "Pirate", bg: "#2c1810", cat: "Fantasy" },
-  // Fun & Animals
+  // Fun
   { id: "ghost", emoji: "👻", label: "Ghost", bg: "#1a1a2e", cat: "Fun" },
   { id: "alien", emoji: "👽", label: "Alien", bg: "#0a3d2e", cat: "Fun" },
-  { id: "robot", emoji: "🤖", label: "Robot", bg: "#1a2a3a", cat: "Fun" },
-  { id: "cat", emoji: "🐱", label: "Cat", bg: "#2a2a1a", cat: "Fun" },
-  { id: "dog", emoji: "🐶", label: "Dog", bg: "#2a1a0a", cat: "Fun" },
   { id: "unicorn", emoji: "🦄", label: "Unicorn", bg: "#2a0a3d", cat: "Fun" },
   { id: "lion", emoji: "🦁", label: "Lion", bg: "#3d2a0a", cat: "Fun" },
   { id: "dragon", emoji: "🐉", label: "Dragon", bg: "#3d1a0a", cat: "Fun" },
-  { id: "monkey", emoji: "🐵", label: "Monkey", bg: "#2a1a1a", cat: "Fun" },
-  { id: "panda", emoji: "🐼", label: "Panda", bg: "#1a2a1a", cat: "Fun" },
 ];
 const RES = [
   { e: "🔥", l: "Loved it" },{ e: "👍", l: "Pretty good" },{ e: "😴", l: "Fell asleep" },
