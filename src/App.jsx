@@ -43,26 +43,45 @@ const MF = [
 ];
 const AGES = ["Under 5","5–8","9–12","13+"];
 const AVATARS = [
-  { id: "ninja", emoji: "🥷", label: "Ninja", bg: "#1a1a2e" },
-  { id: "astro", emoji: "🧑‍🚀", label: "Astronaut", bg: "#0f3460" },
-  { id: "wizard", emoji: "🧙‍♂️", label: "Wizard", bg: "#3a1078" },
-  { id: "witch", emoji: "🧙‍♀️", label: "Witch", bg: "#2d1050" },
-  { id: "pirate", emoji: "🏴‍☠️", label: "Pirate", bg: "#2c1810" },
-  { id: "queen", emoji: "👸", label: "Queen", bg: "#3d1a3a" },
-  { id: "prince", emoji: "🤴", label: "Prince", bg: "#1a2a3d" },
-  { id: "hero", emoji: "🦸‍♂️", label: "Hero", bg: "#0a1a3d" },
-  { id: "heroine", emoji: "🦸‍♀️", label: "Heroine", bg: "#2a0a3d" },
-  { id: "alien", emoji: "👽", label: "Alien", bg: "#0a3d2e" },
-  { id: "robot", emoji: "🤖", label: "Robot", bg: "#1a2a3a" },
-  { id: "vampire", emoji: "🧛‍♂️", label: "Vampire", bg: "#2d0a31" },
-  { id: "vampiress", emoji: "🧛‍♀️", label: "Vampiress", bg: "#3d0a2a" },
-  { id: "detective", emoji: "🕵️‍♂️", label: "Detective", bg: "#1a1a1a" },
-  { id: "sleuth", emoji: "🕵️‍♀️", label: "Sleuth", bg: "#1a1a2a" },
-  { id: "dancer", emoji: "💃", label: "Dancer", bg: "#3d0a1a" },
-  { id: "rockstar", emoji: "🎸", label: "Rockstar", bg: "#2d0a1a" },
-  { id: "dragon", emoji: "🐉", label: "Dragon", bg: "#3d1a0a" },
-  { id: "chef", emoji: "👨‍🍳", label: "Chef", bg: "#2a1a0a" },
-  { id: "artist", emoji: "🎨", label: "Artist", bg: "#1a2a2a" },
+  // Adults
+  { id: "man1", emoji: "👨", label: "Dad", bg: "#1a2a3d", cat: "People" },
+  { id: "woman1", emoji: "👩", label: "Mom", bg: "#3d1a3a", cat: "People" },
+  { id: "man2", emoji: "🧔", label: "Beardy", bg: "#2c1810", cat: "People" },
+  { id: "woman2", emoji: "👩‍🦱", label: "Curly", bg: "#2d1a2a", cat: "People" },
+  { id: "oldman", emoji: "👴", label: "Grandpa", bg: "#1a1a2a", cat: "People" },
+  { id: "oldwoman", emoji: "👵", label: "Grandma", bg: "#2a1a2a", cat: "People" },
+  { id: "cool", emoji: "😎", label: "Cool One", bg: "#0f3460", cat: "People" },
+  { id: "nerd", emoji: "🤓", label: "Nerd", bg: "#1a2a2a", cat: "People" },
+  // Kids
+  { id: "boy", emoji: "👦", label: "Boy", bg: "#0a2a4d", cat: "Kids" },
+  { id: "girl", emoji: "👧", label: "Girl", bg: "#3d0a2a", cat: "Kids" },
+  { id: "baby", emoji: "👶", label: "Baby", bg: "#2a2a1a", cat: "Kids" },
+  { id: "kid1", emoji: "🧒", label: "Kid", bg: "#1a3a2a", cat: "Kids" },
+  { id: "princess", emoji: "👸", label: "Princess", bg: "#3d1a3a", cat: "Kids" },
+  { id: "prince", emoji: "🤴", label: "Prince", bg: "#1a2a3d", cat: "Kids" },
+  // Fantasy & Movie Characters
+  { id: "ninja", emoji: "🥷", label: "Ninja", bg: "#1a1a2e", cat: "Fantasy" },
+  { id: "wizard", emoji: "🧙‍♂️", label: "Wizard", bg: "#3a1078", cat: "Fantasy" },
+  { id: "hero", emoji: "🦸‍♂️", label: "Hero", bg: "#0a1a3d", cat: "Fantasy" },
+  { id: "heroine", emoji: "🦸‍♀️", label: "Heroine", bg: "#2a0a3d", cat: "Fantasy" },
+  { id: "villain", emoji: "🦹", label: "Villain", bg: "#3d0a0a", cat: "Fantasy" },
+  { id: "vampire", emoji: "🧛", label: "Vampire", bg: "#2d0a31", cat: "Fantasy" },
+  { id: "fairy", emoji: "🧚", label: "Fairy", bg: "#1a3a3a", cat: "Fantasy" },
+  { id: "mermaid", emoji: "🧜‍♀️", label: "Mermaid", bg: "#0a2a3d", cat: "Fantasy" },
+  { id: "zombie", emoji: "🧟", label: "Zombie", bg: "#1a2a1a", cat: "Fantasy" },
+  { id: "astro", emoji: "🧑‍🚀", label: "Astronaut", bg: "#0f3460", cat: "Fantasy" },
+  { id: "pirate", emoji: "🏴‍☠️", label: "Pirate", bg: "#2c1810", cat: "Fantasy" },
+  // Fun & Animals
+  { id: "ghost", emoji: "👻", label: "Ghost", bg: "#1a1a2e", cat: "Fun" },
+  { id: "alien", emoji: "👽", label: "Alien", bg: "#0a3d2e", cat: "Fun" },
+  { id: "robot", emoji: "🤖", label: "Robot", bg: "#1a2a3a", cat: "Fun" },
+  { id: "cat", emoji: "🐱", label: "Cat", bg: "#2a2a1a", cat: "Fun" },
+  { id: "dog", emoji: "🐶", label: "Dog", bg: "#2a1a0a", cat: "Fun" },
+  { id: "unicorn", emoji: "🦄", label: "Unicorn", bg: "#2a0a3d", cat: "Fun" },
+  { id: "lion", emoji: "🦁", label: "Lion", bg: "#3d2a0a", cat: "Fun" },
+  { id: "dragon", emoji: "🐉", label: "Dragon", bg: "#3d1a0a", cat: "Fun" },
+  { id: "monkey", emoji: "🐵", label: "Monkey", bg: "#2a1a1a", cat: "Fun" },
+  { id: "panda", emoji: "🐼", label: "Panda", bg: "#1a2a1a", cat: "Fun" },
 ];
 const RES = [
   { e: "🔥", l: "Loved it" },{ e: "👍", l: "Pretty good" },{ e: "😴", l: "Fell asleep" },
@@ -315,15 +334,21 @@ export default function App(){
     return <span style={{fontSize:10,fontWeight:700,padding:"3px 8px",borderRadius:6,background:p.b,color:p.c}}>{n}</span>;};
   const socialBtn=(bg,color,border)=>({width:"100%",padding:"14px 20px",borderRadius:14,fontSize:15,fontWeight:600,fontFamily:F,
     display:"flex",alignItems:"center",justifyContent:"center",gap:12,background:bg,color,border:border||"none",marginBottom:10});
-  const AvatarGrid=({selected,onSelect})=><div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:6}}>
-    {AVATARS.map(a=><button key={a.id} onClick={()=>onSelect(a.emoji)}
-      style={{display:"flex",flexDirection:"column",alignItems:"center",padding:"6px 2px 4px",borderRadius:10,gap:2,
-        background:selected===a.emoji?a.bg:"rgba(255,255,255,0.03)",
-        border:selected===a.emoji?"2px solid rgba(232,147,47,0.6)":"1.5px solid rgba(255,255,255,0.06)"}}>
-      <span style={{fontSize:20}}>{a.emoji}</span>
-      <span style={{fontSize:8,fontWeight:600,color:selected===a.emoji?A:"rgba(255,255,255,0.25)"}}>{a.label}</span>
-    </button>)}
-  </div>;
+  const AvatarGrid=({selected,onSelect})=>{
+    const cats=["People","Kids","Fantasy","Fun"];
+    return <div>{cats.map(cat=><div key={cat} style={{marginBottom:12}}>
+      <p style={{fontSize:10,fontWeight:700,color:"rgba(255,255,255,0.2)",letterSpacing:1.2,textTransform:"uppercase",marginBottom:6}}>{cat}</p>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:5}}>
+        {AVATARS.filter(a=>a.cat===cat).map(a=><button key={a.id} onClick={()=>onSelect(a.emoji)}
+          style={{display:"flex",flexDirection:"column",alignItems:"center",padding:"6px 2px 4px",borderRadius:10,gap:2,
+            background:selected===a.emoji?a.bg:"rgba(255,255,255,0.03)",
+            border:selected===a.emoji?"2px solid rgba(232,147,47,0.6)":"1.5px solid rgba(255,255,255,0.06)"}}>
+          <span style={{fontSize:22}}>{a.emoji}</span>
+          <span style={{fontSize:7,fontWeight:600,color:selected===a.emoji?A:"rgba(255,255,255,0.25)"}}>{a.label}</span>
+        </button>)}
+      </div>
+    </div>)}</div>;
+  };
 
   const view=()=>{
     // ── LOGIN ──
