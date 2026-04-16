@@ -188,6 +188,9 @@ export default function App(){
   const [fbSent,setFbSent]=useState(false);
   const [fbScreen,setFbScreen]=useState(null);
   const [fbAll,setFbAll]=useState([]);
+  const [kidsRating,setKidsRating]=useState("PG-13");
+  const [streak,setStreak]=useState(()=>load("streak",{count:0,lastDate:null}));
+  const [aiNote,setAiNote]=useState("");
   const [rView,setRView]=useState("list");
   const [swIdx,setSwIdx]=useState(0);
   const [swLiked,setSwLiked]=useState([]);
@@ -209,6 +212,17 @@ export default function App(){
   useEffect(()=>{save("wl",wl);},[wl]);
   useEffect(()=>{save("seen",seen);},[seen]);
   useEffect(()=>{save("rat",rat);},[rat]);
+  useEffect(()=>{save("streak",streak);},[streak]);
+
+  const updateStreak=()=>{
+    const today=new Date().toISOString().split("T")[0];
+    const yesterday=new Date(Date.now()-86400000).toISOString().split("T")[0];
+    setStreak(prev=>{
+      if(prev.lastDate===today)return prev;
+      if(prev.lastDate===yesterday)return{count:prev.count+1,lastDate:today};
+      return{count:1,lastDate:today};
+    });
+  };
 
   const inWl=m=>wl.some(w=>mk(w)===mk(m));
   const isSn=m=>!!seen[mk(m)];
@@ -218,7 +232,7 @@ export default function App(){
   const doRate=(m,emoji,label)=>setRat({...rat,[mk(m)]:{emoji,label,title:m.title,year:m.year,genre:m.genre,language:m.language}});
   const lovedMovies=Object.entries(rat).filter(([_,v])=>v.emoji==="🔥").map(([k,v])=>({...v,key:k}));
   const likedTitles=Object.entries(rat).filter(([_,v])=>v.emoji==="🔥"||v.emoji==="👍").map(([_,v])=>v.title).filter(Boolean);
-  const resetNav=d=>{setBusy(false);setMov([]);setErr("");setRView("list");setSwIdx(0);setSwLiked([]);setSwDir(null);setVotes({});setScr(d);};
+  const resetNav=d=>{setBusy(false);setMov([]);setErr("");setAiNote("");setRView("list");setSwIdx(0);setSwLiked([]);setSwDir(null);setVotes({});setScr(d);};
 
   const doFetch=useCallback(async()=>{
     if(busy)return;
@@ -246,18 +260,24 @@ export default function App(){
     const subList=subs.length>0?` CRITICAL: User ONLY subscribes to: ${subs.join(", ")}. Every movie MUST be available on one of these. Do NOT suggest movies from other platforms. The platforms field must ONLY contain services from this list.`:"";
     const exPlat=subs.length>0?subs[0]:"Netflix";
 
+    const kidsFilter=mode==="family"?` IMPORTANT: Only suggest movies rated ${kidsRating} or lower. No movies above ${kidsRating} rating. Every movie must be safe for children.`:"";
+
+    const honesty=` HONESTY RULE: Only suggest movies you are CERTAIN exist. If the combination (mood + language + platform) has fewer real movies than requested, return however many real ones you can find. Add a "note" field in the JSON explaining what was available and what was not. For example if asked for Tamil zombie movies on Netflix but only 1 exists, return that 1 and fill remaining slots with the closest match (like Tamil horror or Hindi zombie) and explain in each movie's "matchNote" field what criteria it does and does not match. Never invent fake movie titles.`;
+
     const pr=mode==="couple"
-      ?`Return exactly ${total} movies.${distRule}${langClause}${ec}${taste}${subList} Mix popular+hidden gems.${sc} Genre: pick 1-2 from ONLY: Action, Comedy, Drama, Romance, Thriller, Horror, Sci-Fi, Fantasy, Animation, Musical, Documentary, Mystery, Adventure, Family. Context: couple movie night. Return JSON object: {"movies":[{"title":"...","year":2020,"genre":"Drama, Thriller","language":"...","mood":"...","whyWatch":"...","contentRating":"...","platforms":["${exPlat}"]}]}. Do not use apostrophes in text.`
-      :`Return exactly ${total} movies.${distRule} Kids ages: ${ages.join(",")}.${langClause}${ec}${taste}${subList}${sc} Genre: pick 1-2 from ONLY: Action, Comedy, Drama, Romance, Thriller, Horror, Sci-Fi, Fantasy, Animation, Musical, Documentary, Mystery, Adventure, Family. Context: family movie night, age-appropriate. Return JSON object: {"movies":[{"title":"...","year":2020,"genre":"Action, Adventure","language":"...","mood":"...","whyWatch":"...","ageAppropriate":"...","platforms":["${exPlat}"]}]}. Do not use apostrophes in text.`;
+      ?`Return exactly ${total} movies.${distRule}${langClause}${ec}${taste}${subList} Mix popular+hidden gems.${sc}${honesty} Genre: pick 1-2 from ONLY: Action, Comedy, Drama, Romance, Thriller, Horror, Sci-Fi, Fantasy, Animation, Musical, Documentary, Mystery, Adventure, Family. Context: couple movie night. Return JSON object: {"movies":[{"title":"...","year":2020,"genre":"Drama, Thriller","language":"...","mood":"...","whyWatch":"...","contentRating":"...","platforms":["${exPlat}"],"matchNote":"..."}],"note":"..."}. Do not use apostrophes in text.`
+      :`Return exactly ${total} movies.${distRule} Kids ages: ${ages.join(",")}.${kidsFilter}${langClause}${ec}${taste}${subList}${sc}${honesty} Genre: pick 1-2 from ONLY: Action, Comedy, Drama, Romance, Thriller, Horror, Sci-Fi, Fantasy, Animation, Musical, Documentary, Mystery, Adventure, Family. Context: family movie night, age-appropriate. Return JSON object: {"movies":[{"title":"...","year":2020,"genre":"Action, Adventure","language":"...","mood":"...","whyWatch":"...","contentRating":"...","ageAppropriate":"...","platforms":["${exPlat}"],"matchNote":"..."}],"note":"..."}. Do not use apostrophes in text.`;
     try{
       const ctrl=new AbortController();timer=setTimeout(()=>ctrl.abort(),40000);
       let parsed=null;
+      setAiNote("");
       for(let tryN=0;tryN<3;tryN++){
         try{
           const txt=await askAI(pr,ctrl.signal);
           let result=fixJSON(txt);
-          // Handle both {"movies":[...]} and raw [...]
+          // Handle {"movies":[...],"note":"..."} wrapper
           if(result&&!Array.isArray(result)){
+            if(result.note)setAiNote(result.note);
             const vals=Object.values(result);
             const arr=vals.find(v=>Array.isArray(v));
             if(arr)result=arr;
@@ -272,6 +292,7 @@ export default function App(){
       if(!parsed||!Array.isArray(parsed))throw new Error("Could not get valid results. Try again!");
       parsed.forEach(p=>{if(p.title&&!shownRef.current.includes(p.title))shownRef.current.push(p.title);});
       setMov(parsed);
+      updateStreak();
     }catch(e){setErr(e.name==="AbortError"?"Timed out. Try again!":(e.message||"Error"));setMov([{error:true}]);}
     finally{clearTimeout(timer);clearInterval(iv);setBusy(false);}
   },[moods,ages,mode,seen,langs,eras,subs]);
@@ -369,6 +390,12 @@ export default function App(){
           style={{width:44,height:44,borderRadius:14,display:"flex",alignItems:"center",justifyContent:"center",
             fontSize:26,background:avBg(user?.avatar),border:"1.5px solid rgba(232,147,47,0.3)"}}>{user?.avatar||"🥷"}</button>
       </div>
+      {streak.count>1&&<div style={{...cd,padding:"12px 16px",marginBottom:14,display:"flex",alignItems:"center",gap:10,
+        background:"linear-gradient(135deg,rgba(232,147,47,0.08),rgba(232,100,26,0.06))"}}>
+        <span style={{fontSize:28}}>🔥</span>
+        <div><div style={{color:A,fontWeight:700,fontSize:15}}>{streak.count}-day streak!</div>
+          <div style={{color:"rgba(255,255,255,0.35)",fontSize:12,marginTop:1}}>You have been picking movies {streak.count} days in a row</div></div>
+      </div>}
       <p style={lb}>WHO'S WATCHING?</p>
       <div style={{display:"flex",gap:10,marginBottom:24,flexWrap:"wrap"}}>
         <button onClick={()=>setAp(ap==="me"?null:"me")}
@@ -573,7 +600,18 @@ export default function App(){
           {mode==="family"&&<><p style={lb}>KIDS' AGES</p>
             <div style={{display:"flex",flexWrap:"wrap",gap:8,marginBottom:16}}>
               {AGES.map(a=><button key={a} style={pill(ages.includes(a))} onClick={()=>setAges(p=>tg(p,a))}>{a}</button>)}
-            </div></>}
+            </div>
+            <p style={lb}>MAX RATING</p>
+            <div style={{display:"flex",gap:8,marginBottom:16}}>
+              {["G","PG","PG-13"].map(r=><button key={r} onClick={()=>setKidsRating(r)}
+                style={{flex:1,padding:"10px 0",borderRadius:10,fontSize:14,fontWeight:700,fontFamily:F,textAlign:"center",
+                  border:kidsRating===r?"1.5px solid rgba(232,147,47,0.5)":"1.5px solid rgba(255,255,255,0.06)",
+                  background:kidsRating===r?"rgba(232,147,47,0.1)":"rgba(255,255,255,0.03)",
+                  color:kidsRating===r?A:"rgba(255,255,255,0.35)"}}>
+                {r==="G"?"G (All ages)":r==="PG"?"PG (Kids 7+)":"PG-13 (Teens)"}
+              </button>)}
+            </div>
+          </>}
           <button style={pbtn(moods.length>0&&(mode==="couple"||ages.length>0))}
             onClick={()=>{if(moods.length>0&&(mode==="couple"||ages.length>0))setTab(1);}}>Next → Language & Era</button>
         </>:<>
@@ -621,6 +659,13 @@ export default function App(){
           <button style={bk} onClick={()=>resetNav("pick")}>← Try again</button></div>
         :<>
           <p style={{...lb,marginBottom:12}}>TONIGHT'S DROP</p>
+          {aiNote&&<div style={{...cd,padding:"12px 14px",marginBottom:12,background:"rgba(232,147,47,0.06)",
+            borderColor:"rgba(232,147,47,0.15)"}}>
+            <div style={{display:"flex",gap:8,alignItems:"start"}}>
+              <span style={{fontSize:16,flexShrink:0}}>💡</span>
+              <p style={{fontSize:12,color:"rgba(255,255,255,0.5)",lineHeight:1.5,margin:0}}>{aiNote}</p>
+            </div>
+          </div>}
           {mov.map((m,i)=><button key={i} onClick={()=>{setDet(m);setScr("detail");}}
             style={{...cd,padding:"14px 16px",marginBottom:10,width:"100%",textAlign:"left"}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"start"}}>
@@ -630,10 +675,21 @@ export default function App(){
             <p style={{fontSize:12,color:"rgba(232,147,47,0.7)",fontWeight:600,margin:"3px 0 5px"}}>
               {m.year} · {m.genre}{m.language&&m.language!=="English"?` · ${m.language}`:""}{m.mood?` · ${m.mood}`:""}</p>
             <p style={{fontSize:12,color:"rgba(255,255,255,0.42)",lineHeight:1.5,marginBottom:6}}>{m.whyWatch}</p>
+            {m.matchNote&&<p style={{fontSize:11,color:"rgba(232,147,47,0.5)",lineHeight:1.4,marginBottom:6,fontStyle:"italic"}}>⚠️ {m.matchNote}</p>}
             {m.platforms?.length>0&&<div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
               {m.platforms.map((p,j)=><Badge key={j} n={p}/>)}</div>}
           </button>)}
           <button style={pbtn(true)} onClick={doFetch}>🎬 Fresh Drop</button>
+          <button onClick={async()=>{
+            const text=mov.filter(m=>m.title).map((m,i)=>(i+1)+". "+m.title+" ("+m.year+") - "+m.genre+(m.platforms?.length?" ["+m.platforms.join(", ")+"]":"")).join("\n");
+            const shareData={title:"FlickDrop Picks",text:"Tonight's FlickDrop picks:\n\n"+text+"\n\nGet your own picks: "+window.location.href};
+            if(navigator.share){try{await navigator.share(shareData);}catch{}}
+            else{try{await navigator.clipboard.writeText(shareData.text);alert("Copied to clipboard!");}catch{}}
+          }} style={{width:"100%",padding:"14px",borderRadius:14,fontSize:14,fontWeight:700,fontFamily:F,
+            background:"rgba(232,147,47,0.08)",color:A,border:"1.5px solid rgba(232,147,47,0.2)",marginTop:8,
+            display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+            📤 Share Picks
+          </button>
           <button onClick={()=>resetNav("home")} style={{width:"100%",padding:"12px",borderRadius:14,fontSize:14,fontWeight:600,fontFamily:F,color:"rgba(255,255,255,0.4)",marginTop:8}}>← Back to Home</button>
           <p style={{fontSize:10,color:"rgba(255,255,255,0.13)",textAlign:"center",marginTop:6}}>Streaming is AI-estimated</p>
         </>}
