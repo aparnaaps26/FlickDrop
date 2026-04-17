@@ -6,7 +6,8 @@ const PLATFORMS = {
   8: "Netflix", 9: "Prime", 15: "Hulu", 337: "Disney+",
   350: "Apple TV+", 386: "Peacock", 531: "Paramount+",
   1899: "Max", 283: "Crunchyroll", 73: "Tubi",
-  122: "Hotstar", 119: "Prime",
+  122: "Hotstar", 119: "Prime", 300: "Pluto TV",
+  220: "JioStar", 2336: "JioStar",
 };
 
 export default async function handler(req, res) {
