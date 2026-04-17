@@ -269,8 +269,8 @@ export default function App(){
     const honesty=` RULES: Only suggest real movies you are certain exist. Never invent titles. Be STRICT about mood matching - a sad romance is NOT a comedy, a thriller is NOT feel-good. If not enough exact mood matches exist, return fewer movies and explain in "note". Add short "matchNote" only on imperfect matches.`;
 
     const pr=mode==="couple"
-      ?`Return exactly ${total} movies.${distRule}${langClause}${ec}${taste}${sc}${honesty} Mix popular+hidden gems. Genre: pick 1-2 from ONLY: Action, Comedy, Drama, Romance, Thriller, Horror, Sci-Fi, Fantasy, Animation, Musical, Documentary, Mystery, Adventure, Family. Context: couple movie night. Return JSON: {"movies":[{"title":"...","year":2020,"genre":"...","language":"...","mood":"...","whyWatch":"1 short sentence","contentRating":"...","matchNote":""}],"note":""}. Keep whyWatch under 15 words. No apostrophes. Do NOT include platforms - we verify separately.`
-      :`Return exactly ${total} movies.${distRule} Kids ages: ${ages.join(",")}.${kidsFilter}${langClause}${ec}${taste}${sc}${honesty} Genre: pick 1-2 from ONLY: Action, Comedy, Drama, Romance, Thriller, Horror, Sci-Fi, Fantasy, Animation, Musical, Documentary, Mystery, Adventure, Family. Context: family movie night. Return JSON: {"movies":[{"title":"...","year":2020,"genre":"...","language":"...","mood":"...","whyWatch":"1 short sentence","contentRating":"...","ageAppropriate":"...","matchNote":""}],"note":""}. Keep whyWatch under 15 words. No apostrophes. Do NOT include platforms - we verify separately.`;
+      ?`Return exactly ${total} movies.${distRule}${langClause}${ec}${taste}${subList}${sc}${honesty} Mix popular+hidden gems. Genre: pick 1-2 from ONLY: Action, Comedy, Drama, Romance, Thriller, Horror, Sci-Fi, Fantasy, Animation, Musical, Documentary, Mystery, Adventure, Family. Context: couple movie night. Return JSON: {"movies":[{"title":"...","year":2020,"genre":"...","language":"...","mood":"...","whyWatch":"1 short sentence","contentRating":"...","platforms":["${exPlat}"],"matchNote":""}],"note":""}. Keep whyWatch under 15 words. No apostrophes.`
+      :`Return exactly ${total} movies.${distRule} Kids ages: ${ages.join(",")}.${kidsFilter}${langClause}${ec}${taste}${subList}${sc}${honesty} Genre: pick 1-2 from ONLY: Action, Comedy, Drama, Romance, Thriller, Horror, Sci-Fi, Fantasy, Animation, Musical, Documentary, Mystery, Adventure, Family. Context: family movie night. Return JSON: {"movies":[{"title":"...","year":2020,"genre":"...","language":"...","mood":"...","whyWatch":"1 short sentence","contentRating":"...","ageAppropriate":"...","platforms":["${exPlat}"],"matchNote":""}],"note":""}. Keep whyWatch under 15 words. No apostrophes.`;
     try{
       const ctrl=new AbortController();timer=setTimeout(()=>ctrl.abort(),50000);
       let parsed=null;
@@ -294,19 +294,28 @@ export default function App(){
       }
       if(!parsed||!Array.isArray(parsed))throw new Error("Could not get valid results. Try again!");
       parsed.forEach(p=>{if(p.title&&!shownRef.current.includes(p.title))shownRef.current.push(p.title);});
-      setMov(parsed);
-      // Enrich with real TMDB data
+      // Show AI results immediately (with AI-estimated platforms)
+      const withFlag=parsed.map(m=>({...m,platformSource:"ai"}));
+      setMov(withFlag);
+      // Then try TMDB enrichment for real data (poster, rating, verified platforms)
       try{
         const tmdbRes=await fetch("/api/tmdb",{method:"POST",headers:{"Content-Type":"application/json"},
           body:JSON.stringify({movies:parsed.map(m=>({title:m.title,year:m.year}))})});
         if(tmdbRes.ok){
           const tmdbData=await tmdbRes.json();
           if(tmdbData.results){
-            const enriched=parsed.map((m,i)=>{
+            const enriched=withFlag.map((m,i)=>{
               const t=tmdbData.results.find(r=>r.title===m.title)||tmdbData.results[i]||{};
               const real=t.platforms||[];
               const filtered=subs.length>0?real.filter(p=>subs.includes(p)):real;
-              return{...m,platforms:filtered,allPlatforms:real,poster:t.poster||null,tmdbRating:t.tmdbRating||null};
+              // Use TMDB platforms if found, otherwise keep AI estimate
+              const useTmdb=real.length>0;
+              return{...m,
+                platforms:useTmdb?filtered:m.platforms,
+                allPlatforms:useTmdb?real:null,
+                platformSource:useTmdb?"tmdb":"ai",
+                poster:t.poster||null,
+                tmdbRating:t.tmdbRating||null};
             });
             setMov(enriched);
           }
@@ -699,10 +708,14 @@ export default function App(){
                 {m.year} · {m.genre}{m.language&&m.language!=="English"?` · ${m.language}`:""}{m.tmdbRating?` · ⭐ ${m.tmdbRating.toFixed(1)}`:""}</p>
               <p style={{fontSize:12,color:"rgba(255,255,255,0.42)",lineHeight:1.5,marginBottom:6}}>{m.whyWatch}</p>
               {m.matchNote&&<p style={{fontSize:11,color:"rgba(232,147,47,0.5)",lineHeight:1.4,marginBottom:6,fontStyle:"italic"}}>⚠️ {m.matchNote}</p>}
-              {m.platforms?.length>0?<div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
-                {m.platforms.map((p,j)=><Badge key={j} n={p}/>)}</div>
+              {m.platforms?.length>0?<div>
+                <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+                  {m.platforms.map((p,j)=><Badge key={j} n={p}/>)}
+                </div>
+                {m.platformSource==="ai"&&<p style={{fontSize:9,color:"rgba(255,255,255,0.15)",marginTop:3}}>estimated</p>}
+              </div>
               :m.allPlatforms?.length>0?<p style={{fontSize:10,color:"rgba(255,255,255,0.25)"}}>On {m.allPlatforms.join(", ")} (not in your subscriptions)</p>
-              :<p style={{fontSize:10,color:"rgba(255,255,255,0.2)"}}>Platform info unavailable</p>}
+              :null}
             </div>
           </button>)}
           <button style={pbtn(true)} onClick={doFetch}>🎬 Fresh Drop</button>
