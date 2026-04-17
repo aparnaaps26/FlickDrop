@@ -13,8 +13,10 @@ const PCOLORS = {
   "HBO": { c: "#002BE7", b: "rgba(0,43,231,0.12)" },
   "Crunchyroll": { c: "#F47521", b: "rgba(244,117,33,0.12)" },
   "Tubi": { c: "#F55D24", b: "rgba(245,93,36,0.12)" },
+  "JioStar": { c: "#E8375A", b: "rgba(232,55,90,0.12)" },
+  "Pluto TV": { c: "#FFD237", b: "rgba(255,210,55,0.12)" },
 };
-const SUBS_LIST = ["Netflix","Prime","Hulu","Disney+","Hotstar","Max","HBO","Peacock","Apple TV+","Paramount+","Crunchyroll","Tubi"];
+const SUBS_LIST = ["Netflix","Prime","Hulu","Disney+","Hotstar","JioStar","Max","HBO","Peacock","Apple TV+","Paramount+","Crunchyroll","Tubi","Pluto TV"];
 const LANGS = [
   { e: "🇺🇸", l: "English", c: "en" }, { e: "🇪🇸", l: "Spanish", c: "es" },
   { e: "🇫🇷", l: "French", c: "fr" }, { e: "🇮🇳", l: "Hindi", c: "hi" },
@@ -247,14 +249,12 @@ export default function App(){
     const langNames=langs.map(c=>LANGS.find(l=>l.c===c)?.l).filter(Boolean);
     const ln=langNames.join(", ");
 
-    // Count: 2 per vibe if multi-vibe, else 2 per lang if multi-lang, else 3
-    // Eras are always a preference, never a distribution axis (too restrictive with niche combos)
-    let total=3,distRule="";
-    if(moods.length>=2){total=moods.length*2;distRule=` IMPORTANT: Return EXACTLY 2 movies for EACH of these ${moods.length} moods: ${mt}. That is ${total} movies total. Label each movie's "mood" field.`;}
-    else if(langNames.length>=2){total=langNames.length*2;distRule=` IMPORTANT: Return EXACTLY 2 movies per language for: ${ln}. That is ${total} movies total.`;}
-    else{distRule=` Every movie MUST match this mood: ${mt}. Do not deviate.`;}
+    // Always 4 movies total
+    let total=4,distRule="";
+    if(moods.length>=2){distRule=` Return 4 movies total covering these moods: ${mt}. Spread them across the moods. Label each movie's "mood" field.`;}
+    else if(moods.length===1){distRule=` All 4 movies MUST match this mood: ${mt}. Do not deviate.`;}
 
-    const langClause=langNames.length>=2?` Distribute across: ${ln}.`:(ln?` Language: ${ln}.`:"");
+    const langClause=ln?` Language: ${ln}.`:" Any language is fine - pick the best movies regardless of language.";
     const er=eras.map(e=>({classic:"before 1980",retro:"1980–2005",modern:"2006–2019",recent:"2020+"}[e]||"")).filter(Boolean).join(" or ");
     const ec=er?` Era: ${er}.`:"";
     const seenT=Object.keys(seen).map(k=>k.split("::")[0]);
@@ -582,7 +582,7 @@ export default function App(){
     // ── PICK ──
     if(scr==="pick"){
       const ml=mode==="couple"?MC:MF;
-      const ok=moods.length>0&&langs.length>0&&(mode==="couple"||ages.length>0);
+      const ok=moods.length>0&&(mode==="couple"||ages.length>0);
       const selLangs=langs.map(c=>LANGS.find(l=>l.c===c)?.l).filter(Boolean);
       return <div className="fu">
         <button style={bk} onClick={()=>resetNav("home")}>← Home</button>
@@ -604,7 +604,7 @@ export default function App(){
         </div>
         {tab===0?<>
           <p style={lb}>WHAT'S THE VIBE?</p>
-          <p style={{fontSize:11,color:"rgba(255,255,255,0.2)",marginBottom:10}}>Pick 1 for 3 movies, or 2+ for 2 movies per vibe</p>
+          <p style={{fontSize:11,color:"rgba(255,255,255,0.2)",marginBottom:10}}>Pick 1 or more vibes — you will get 4 best movies</p>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:7,marginBottom:16}}>
             {ml.map(m=><button key={m.l} onClick={()=>setMoods(p=>tg(p,m.l))}
               style={{display:"flex",flexDirection:"column",alignItems:"center",padding:"11px 4px 8px",borderRadius:12,gap:4,
