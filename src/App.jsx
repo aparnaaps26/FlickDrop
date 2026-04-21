@@ -15,8 +15,17 @@ const PCOLORS = {
   "Tubi": { c: "#F55D24", b: "rgba(245,93,36,0.12)" },
   "JioStar": { c: "#E8375A", b: "rgba(232,55,90,0.12)" },
   "Pluto TV": { c: "#FFD237", b: "rgba(255,210,55,0.12)" },
+  "Zee5": { c: "#8230C6", b: "rgba(130,48,198,0.12)" },
+  "Aha": { c: "#FF4A57", b: "rgba(255,74,87,0.12)" },
+  "Sun NXT": { c: "#FF9800", b: "rgba(255,152,0,0.12)" },
+  "ManoramaMAX": { c: "#E53935", b: "rgba(229,57,53,0.12)" },
+  "SonyLIV": { c: "#00A651", b: "rgba(0,166,81,0.12)" },
+  "Hoichoi": { c: "#EF4123", b: "rgba(239,65,35,0.12)" },
+  "Lionsgate Play": { c: "#FFA400", b: "rgba(255,164,0,0.12)" },
+  "Viki": { c: "#1A90FF", b: "rgba(26,144,255,0.12)" },
+  "Mubi": { c: "#0E1E2F", b: "rgba(14,30,47,0.15)" },
 };
-const SUBS_LIST = ["Netflix","Prime","Hulu","Disney+","Hotstar","JioStar","Max","HBO","Peacock","Apple TV+","Paramount+","Crunchyroll","Tubi","Pluto TV"];
+const SUBS_LIST = ["Netflix","Prime","Hulu","Disney+","Hotstar","JioStar","Zee5","SonyLIV","Aha","Sun NXT","ManoramaMAX","Hoichoi","Max","HBO","Peacock","Apple TV+","Paramount+","Crunchyroll","Tubi","Pluto TV","Lionsgate Play","Viki","Mubi"];
 const LANGS = [
   { e: "🇺🇸", l: "English", c: "en" }, { e: "🇪🇸", l: "Spanish", c: "es" },
   { e: "🇫🇷", l: "French", c: "fr" }, { e: "🇮🇳", l: "Hindi", c: "hi" },
