@@ -3,11 +3,16 @@ export const config = {
 };
 
 const PLATFORMS = {
+  // Global
   8: "Netflix", 9: "Prime", 15: "Hulu", 337: "Disney+",
   350: "Apple TV+", 386: "Peacock", 531: "Paramount+",
-  1899: "Max", 283: "Crunchyroll", 73: "Tubi",
-  122: "Hotstar", 119: "Prime", 300: "Pluto TV",
-  220: "JioStar", 2336: "JioStar",
+  1899: "Max", 283: "Crunchyroll", 73: "Tubi", 300: "Pluto TV",
+  119: "Prime", 11: "Mubi", 344: "Viki",
+  // India
+  122: "Hotstar", 220: "JioStar", 2336: "JioStar",
+  232: "Zee5", 237: "SonyLIV", 532: "Aha",
+  309: "Sun NXT", 315: "Hoichoi", 540: "ManoramaMAX",
+  561: "Lionsgate Play",
 };
 
 export default async function handler(req, res) {
@@ -43,14 +48,20 @@ export default async function handler(req, res) {
         const found = searchData.results?.[0];
         if (!found) return { title: m.title, platforms: [], poster: null, tmdbRating: null };
 
-        // Get streaming providers
+        // Get streaming providers - check both US and India
         const provUrl = "https://api.themoviedb.org/3/movie/" + found.id + "/watch/providers?api_key=" + apiKey;
         const provRes = await fetch(provUrl);
         const provData = await provRes.json();
-        const us = provData.results?.US || provData.results?.IN || {};
-        const allProviders = [...(us.flatrate || []), ...(us.ads || []), ...(us.free || [])];
+        const regions = [provData.results?.US, provData.results?.IN].filter(Boolean);
+        const allProviders = [];
+        for (const region of regions) {
+          for (const p of [...(region.flatrate || []), ...(region.ads || []), ...(region.free || [])]) {
+            if (PLATFORMS[p.provider_id] && !allProviders.find(x => x.provider_id === p.provider_id)) {
+              allProviders.push(p);
+            }
+          }
+        }
         const platforms = allProviders
-          .filter(p => PLATFORMS[p.provider_id])
           .map(p => PLATFORMS[p.provider_id])
           .filter((v, i, a) => a.indexOf(v) === i);
 
