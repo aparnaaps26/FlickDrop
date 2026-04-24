@@ -32,12 +32,12 @@ export default async function handler(req, res) {
         "Authorization": "Bearer " + apiKey,
       },
       body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
+        model: "llama-3.1-8b-instant",
         max_tokens,
         temperature: 0.8,
         response_format: { type: "json_object" },
         messages: [
-          { role: "system", content: "You are a movie recommendation API. RULES: 1) Only recommend movies that actually exist - never invent titles. 2) If not enough exact matches, use closest alternatives with a brief matchNote. 3) Keep whyWatch to 1 short sentence (under 15 words). 4) Keep matchNote under 10 words, only when criteria do not exactly match. 5) Keep note to 1 sentence max, only when needed. FORMAT: Valid JSON, double quotes only, no apostrophes (write do not instead of don't), no trailing commas." },
+          { role: "system", content: "You are a movie recommendation API. STRICT RULES: 1) Only recommend movies that actually exist and are real - never invent or fabricate titles. 2) Be extremely strict about genre/mood matching. An action movie is NOT romance. A cop thriller is NOT romance. A sad drama is NOT comedy. Only suggest movies that genuinely match the requested mood. 3) NEVER suggest platforms the user did not select. NEVER suggest alternative platforms. If unsure about platform, leave platforms empty. 4) If you cannot find enough movies matching all criteria, return fewer movies. 2 correct movies is better than 4 wrong ones. 5) Keep whyWatch under 15 words. 6) Keep matchNote under 10 words, only for imperfect matches. FORMAT: Valid JSON, double quotes only, no apostrophes (write do not instead of don't), no trailing commas." },
           { role: "user", content: prompt }
         ],
       }),
