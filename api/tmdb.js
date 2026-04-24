@@ -7,12 +7,11 @@ const PLATFORMS = {
   8: "Netflix", 9: "Prime", 15: "Hulu", 337: "Disney+",
   350: "Apple TV+", 386: "Peacock", 531: "Paramount+",
   1899: "Max", 283: "Crunchyroll", 73: "Tubi", 300: "Pluto TV",
-  119: "Prime", 11: "Mubi", 344: "Viki",
+  119: "Prime",
   // India
   122: "Hotstar", 220: "JioStar", 2336: "JioStar",
   232: "Zee5", 237: "SonyLIV", 532: "Aha",
   309: "Sun NXT", 315: "Hoichoi", 540: "ManoramaMAX",
-  561: "Lionsgate Play",
 };
 
 export default async function handler(req, res) {
