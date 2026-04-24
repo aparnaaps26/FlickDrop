@@ -21,11 +21,8 @@ const PCOLORS = {
   "ManoramaMAX": { c: "#E53935", b: "rgba(229,57,53,0.12)" },
   "SonyLIV": { c: "#00A651", b: "rgba(0,166,81,0.12)" },
   "Hoichoi": { c: "#EF4123", b: "rgba(239,65,35,0.12)" },
-  "Lionsgate Play": { c: "#FFA400", b: "rgba(255,164,0,0.12)" },
-  "Viki": { c: "#1A90FF", b: "rgba(26,144,255,0.12)" },
-  "Mubi": { c: "#0E1E2F", b: "rgba(14,30,47,0.15)" },
 };
-const SUBS_LIST = ["Netflix","Prime","Hulu","Disney+","Hotstar","JioStar","Zee5","SonyLIV","Aha","Sun NXT","ManoramaMAX","Hoichoi","Max","HBO","Peacock","Apple TV+","Paramount+","Crunchyroll","Tubi","Pluto TV","Lionsgate Play","Viki","Mubi"];
+const SUBS_LIST = ["Netflix","Prime","Hulu","Disney+","Hotstar","JioStar","Zee5","SonyLIV","Aha","Sun NXT","ManoramaMAX","Hoichoi","Max","HBO","Peacock","Apple TV+","Paramount+","Crunchyroll","Tubi","Pluto TV"];
 const LANGS = [
   { e: "🇺🇸", l: "English", c: "en" }, { e: "🇪🇸", l: "Spanish", c: "es" },
   { e: "🇫🇷", l: "French", c: "fr" }, { e: "🇮🇳", l: "Hindi", c: "hi" },
@@ -270,12 +267,12 @@ export default function App(){
     const excl=[...new Set([...seenT,...shownRef.current])];
     const sc=excl.length?` Do NOT suggest: ${excl.join(", ")}.`:"";
     const taste=likedTitles.length>0?` We previously enjoyed: ${likedTitles.slice(-8).join(", ")}. Suggest similar quality.`:"";
-    const subList=subs.length>0?` CRITICAL: User ONLY subscribes to: ${subs.join(", ")}. Every movie MUST be available on one of these. Do NOT suggest movies from other platforms. The platforms field must ONLY contain services from this list.`:"";
+    const subList=subs.length>0?` STRICT PLATFORM RULE: User subscribes to ONLY: ${subs.join(", ")}. Every movie you suggest MUST be available on one of these exact platforms. Do NOT suggest movies from platforms the user did not select. Do NOT suggest alternative platforms. Do NOT say "platform X not available so using Y". If a movie is not on the user's selected platforms, do NOT include that movie. The platforms field must ONLY contain names from this exact list: ${subs.join(", ")}. If you are unsure which platform a movie is on, leave platforms as an empty array.`:"";
     const exPlat=subs.length>0?subs[0]:"Netflix";
 
     const kidsFilter=mode==="family"?` IMPORTANT: Only suggest movies rated ${kidsRating} or lower. No movies above ${kidsRating} rating. Every movie must be safe for children.`:"";
 
-    const honesty=` RULES: Only suggest real movies you are certain exist. Never invent titles. Be STRICT about mood matching - a sad romance is NOT a comedy, a thriller is NOT feel-good. If not enough exact mood matches exist, return fewer movies and explain in "note". Add short "matchNote" only on imperfect matches.`;
+    const honesty=` STRICT RULES: 1) Only suggest movies you are 100% certain exist - never invent titles. 2) Be STRICT about mood/genre matching: an action movie is NOT romance, a cop drama is NOT romance, a sad film is NOT comedy. Only suggest movies that genuinely fit the requested mood. 3) NEVER suggest alternative platforms - only use platforms the user selected. 4) If you cannot find 4 real movies that match ALL criteria (mood + language + platforms), return fewer movies. Returning 2 honest results is better than 4 wrong ones. 5) If a movie does not perfectly match, add a short matchNote explaining why.`;
 
     const pr=mode==="couple"
       ?`Return exactly ${total} movies.${distRule}${langClause}${ec}${taste}${subList}${sc}${honesty} Mix popular+hidden gems. Genre: pick 1-2 from ONLY: Action, Comedy, Drama, Romance, Thriller, Horror, Sci-Fi, Fantasy, Animation, Musical, Documentary, Mystery, Adventure, Family. Context: couple movie night. Return JSON: {"movies":[{"title":"...","year":2020,"genre":"...","language":"...","mood":"...","whyWatch":"1 short sentence","contentRating":"...","platforms":["${exPlat}"],"matchNote":""}],"note":""}. Keep whyWatch under 15 words. No apostrophes.`
@@ -303,9 +300,12 @@ export default function App(){
       }
       if(!parsed||!Array.isArray(parsed))throw new Error("Could not get valid results. Try again!");
       parsed.forEach(p=>{if(p.title&&!shownRef.current.includes(p.title))shownRef.current.push(p.title);});
-      // Show AI results immediately (with AI-estimated platforms)
-      const withFlag=parsed.map(m=>({...m,platformSource:"ai"}));
-      setMov(withFlag);
+      // Safety net: strip any platforms the user didn't select
+      const cleaned=parsed.map(m=>{
+        const safePlats=subs.length>0&&m.platforms?m.platforms.filter(p=>subs.includes(p)):m.platforms;
+        return{...m,platforms:safePlats||[],platformSource:"ai"};
+      });
+      setMov(cleaned);
       // Then try TMDB enrichment for real data (poster, rating, verified platforms)
       try{
         const tmdbRes=await fetch("/api/tmdb",{method:"POST",headers:{"Content-Type":"application/json"},
